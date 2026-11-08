@@ -573,11 +573,7 @@ private fun FileRow(
                 } else {
                     when (file.category()) {
                         FileCategory.PDF -> PdfFileIcon()
-                        FileCategory.ARCHIVES -> Image(
-                            imageVector = ArchiveBooksIcon,
-                            contentDescription = null,
-                            modifier = Modifier.size(36.dp)
-                        )
+                        FileCategory.ARCHIVES -> ArchiveFileIcon(file.extension.uppercase().take(4).ifEmpty { "ZIP" })
                         else -> Text(icon, fontSize = 24.sp)
                     }
                 }
@@ -623,5 +619,23 @@ private fun PdfFileIcon() {
             fontWeight = FontWeight.Bold,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 7.dp)
         )
+    }
+}
+
+/** Icona degli archivi: pagina arancione con una fascia bianca in basso che riporta l'estensione (ZIP, RAR, 7Z...). */
+@Composable
+private fun ArchiveFileIcon(label: String) {
+    Box(modifier = Modifier.size(width = 32.dp, height = 40.dp)) {
+        Image(imageVector = ArchivePageIcon, contentDescription = null, modifier = Modifier.fillMaxSize())
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 3.dp)
+                .size(width = 28.dp, height = 11.dp)
+                .background(Color.White, RoundedCornerShape(2.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(label, color = Color(0xFFEF6C00), fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        }
     }
 }

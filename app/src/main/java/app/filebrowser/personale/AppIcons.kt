@@ -109,42 +109,31 @@ val CloseIcon: ImageVector by lazy {
     }.build()
 }
 
-private fun ImageVector.Builder.book(x: Float, y: Float, w: Float, h: Float, color: Color) {
-    val r = 1f
-    path(fill = SolidColor(color)) {
-        moveTo(x + r, y)
-        horizontalLineToRelative(w - 2 * r)
-        arcToRelative(r, r, 0f, false, true, r, r)
-        verticalLineToRelative(h - 2 * r)
-        arcToRelative(r, r, 0f, false, true, -r, r)
-        horizontalLineToRelative(-(w - 2 * r))
-        arcToRelative(r, r, 0f, false, true, -r, -r)
-        verticalLineToRelative(-(h - 2 * r))
-        arcToRelative(r, r, 0f, false, true, r, -r)
-        close()
-    }
-    // Banda chiara sul dorso del libro
-    path(fill = SolidColor(Color.White.copy(alpha = 0.55f))) {
-        moveTo(x + 3f, y)
-        horizontalLineToRelative(0.8f)
-        verticalLineToRelative(h)
-        horizontalLineToRelative(-0.8f)
-        close()
-    }
-}
-
-/** Tre tomi sovrapposti e sfalsati: icona degli archivi. Colorata, quindi da usare con Image e non con Icon. */
-val ArchiveBooksIcon: ImageVector by lazy {
+/** Pagina arancione con angolo tagliato e due righe di testo: base dell'icona degli archivi. L'etichetta si aggiunge in Compose. */
+val ArchivePageIcon: ImageVector by lazy {
     ImageVector.Builder(
-        name = "ArchiveBooks",
+        name = "ArchivePage",
         defaultWidth = 24.dp,
-        defaultHeight = 24.dp,
+        defaultHeight = 30.dp,
         viewportWidth = 24f,
-        viewportHeight = 24f
+        viewportHeight = 30f
     ).apply {
-        book(x = 3f, y = 15.5f, w = 18f, h = 5.5f, color = Color(0xFFBF360C))
-        book(x = 5f, y = 10f, w = 17f, h = 5f, color = Color(0xFFEF6C00))
-        book(x = 2f, y = 4.5f, w = 17f, h = 5f, color = Color(0xFFFFB300))
+        path(fill = SolidColor(Color(0xFFFB8C00))) {
+            moveTo(3f, 0f)
+            horizontalLineTo(15.5f)
+            lineTo(24f, 8.5f)
+            verticalLineTo(27f)
+            arcToRelative(3f, 3f, 0f, false, true, -3f, 3f)
+            horizontalLineTo(3f)
+            arcToRelative(3f, 3f, 0f, false, true, -3f, -3f)
+            verticalLineTo(3f)
+            arcToRelative(3f, 3f, 0f, false, true, 3f, -3f)
+            close()
+        }
+        path(fill = SolidColor(Color.White)) {
+            moveTo(5f, 5.5f); horizontalLineToRelative(11f); verticalLineToRelative(1.6f); horizontalLineToRelative(-11f); close()
+            moveTo(5f, 9.5f); horizontalLineToRelative(14f); verticalLineToRelative(1.6f); horizontalLineToRelative(-14f); close()
+        }
     }.build()
 }
 
