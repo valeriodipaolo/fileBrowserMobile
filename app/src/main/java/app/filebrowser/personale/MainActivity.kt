@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.FilterChip
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -236,10 +238,11 @@ private fun Browser() {
                     )
                 },
                 navigationIcon = {
-                    TextButton(
+                    FilledTonalIconButton(
                         enabled = current.parentFile != null,
-                        onClick = { current = current.parentFile ?: current }
-                    ) { Text("↑", fontSize = 22.sp) }
+                        onClick = { current = current.parentFile ?: current },
+                        modifier = Modifier.padding(start = 8.dp)
+                    ) { Icon(ArrowUpIcon, contentDescription = "Cartella superiore") }
                 }
             )
         }
