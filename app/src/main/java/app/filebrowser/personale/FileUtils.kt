@@ -45,14 +45,15 @@ fun formatSize(bytes: Long): String {
     return String.format(java.util.Locale.ITALY, "%.1f %s", value, units[unit])
 }
 
-fun openFile(context: Context, file: File) {
+/** Apre con l'app predefinita di Android; con forceChooser mostra sempre l'elenco delle app. */
+fun openFile(context: Context, file: File, forceChooser: Boolean = false) {
     try {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: "*/*"
         val intent = Intent(Intent.ACTION_VIEW)
             .setDataAndType(uri, mime)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        context.startActivity(Intent.createChooser(intent, "Apri con"))
+        context.startActivity(if (forceChooser) Intent.createChooser(intent, "Apri con") else intent)
     } catch (e: ActivityNotFoundException) {
         Toast.makeText(context, "Nessuna app può aprire questo file", Toast.LENGTH_SHORT).show()
     } catch (e: IllegalArgumentException) {

@@ -223,6 +223,7 @@ private fun Browser() {
                         FileRow(
                             file = file,
                             onOpen = { if (file.isDirectory) current = file else openFile(context, file) },
+                            onOpenWith = { openFile(context, file, forceChooser = true) },
                             onExtractHere = { extract(file, file.parentFile ?: current, null) },
                             onExtractToFolder = {
                                 val parent = file.parentFile ?: current
@@ -319,6 +320,7 @@ private fun Browser() {
 private fun FileRow(
     file: File,
     onOpen: () -> Unit,
+    onOpenWith: () -> Unit,
     onExtractHere: () -> Unit,
     onExtractToFolder: () -> Unit,
     onRename: () -> Unit,
@@ -361,10 +363,10 @@ private fun FileRow(
                     onClick = { menu = false; onExtractToFolder() }
                 )
             }
-            DropdownMenuItem(
-                text = { Text(if (file.isDirectory) "Apri" else "Apri con...") },
-                onClick = { menu = false; onOpen() }
-            )
+            DropdownMenuItem(text = { Text("Apri") }, onClick = { menu = false; onOpen() })
+            if (file.isFile) {
+                DropdownMenuItem(text = { Text("Apri con...") }, onClick = { menu = false; onOpenWith() })
+            }
             DropdownMenuItem(text = { Text("Rinomina") }, onClick = { menu = false; onRename() })
             DropdownMenuItem(text = { Text("Elimina") }, onClick = { menu = false; onDelete() })
         }
