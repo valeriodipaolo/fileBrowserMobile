@@ -19,6 +19,7 @@ App Android **nativa (Kotlin + Jetpack Compose)** per esplorare tutto il file sy
 - Pulsante "+ Nuovo file di testo" in basso: chiede il nome (proposto "nuovo.txt", senza sovrascrivere file esistenti), crea il file vuoto nella cartella corrente e lo apre subito nell'editor in modalità modifica.
 - I file .apk si installano toccandoli: serve il permesso `REQUEST_INSTALL_PACKAGES` nel manifest e il consenso "Installa app sconosciute" per FileBrowser, che l'app chiede aprendo la schermata giusta delle impostazioni la prima volta.
 - Selezione multipla per eliminare: voce "Seleziona" nel menu al tocco lungo avvia la modalità selezione; poi un tocco aggiunge o toglie un elemento (casella e riga evidenziata). La barra in alto mostra il conteggio, "Tutti" (tutti gli elementi visibili), il cestino (con conferma) e la X per uscire; il tasto indietro esce dalla selezione. La selezione si azzera cambiando cartella.
+- L'elenco si rilegge da solo quando l'app torna in primo piano (`resumeTick`) e con la voce "Aggiorna" del menu ⋮. Non c'è ancora un controllo automatico mentre l'app resta aperta in primo piano.
 - Menu contestuale al tocco lungo, con azioni rapide. Per gli archivi: "Estrai qui" e "Estrai in cartella".
 - Primo obiettivo: ZIP, comprese le password. Formati successivi: TAR, GZ, BZ2, XZ, 7z (Commons Compress) e RAR in sola estrazione (junrar).
 

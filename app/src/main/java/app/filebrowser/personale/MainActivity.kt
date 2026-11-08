@@ -137,7 +137,7 @@ private fun App(resumeTick: Int) {
     }
 
     if (granted) {
-        Browser()
+        Browser(resumeTick)
     } else {
         Column(
             modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -183,7 +183,7 @@ private sealed interface DialogState {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Browser() {
+private fun Browser(resumeTick: Int) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
@@ -205,7 +205,9 @@ private fun Browser() {
     var menuOpen by remember { mutableStateOf(false) }
     val sortRules = remember(sortSpec) { decodeSort(sortSpec) }
 
-    val entries = remember(current, refresh, sortSpec) { listEntries(current, buildComparator(sortRules)) }
+    // resumeTick: l'elenco si rilegge ogni volta che l'app torna in primo piano (per esempio dopo aver
+    // aggiunto o scaricato file da un'altra app).
+    val entries = remember(current, refresh, sortSpec, resumeTick) { listEntries(current, buildComparator(sortRules)) }
     val visible = remember(entries, filter, showHidden) {
         entries?.filter { (showHidden || !it.isHidden()) && it.matchesFilter(filter) }
     }
@@ -287,6 +289,13 @@ private fun Browser() {
                             Icon(MoreVertIcon, contentDescription = "Altre opzioni")
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Aggiorna") },
+                                onClick = {
+                                    refresh++
+                                    menuOpen = false
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Mostra file nascosti") },
                                 trailingIcon = { if (showHidden) Text("✓") },
