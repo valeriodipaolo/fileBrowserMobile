@@ -28,6 +28,19 @@ android {
         }
     }
 
+    // Si distribuisce la variante release (non debuggabile, molto più fluida di quella debug con Compose),
+    // firmata con la stessa chiave stabile: si installa sopra le versioni debug già presenti.
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
+    lint {
+        checkReleaseBuilds = false
+    }
+
     buildFeatures {
         compose = true
     }

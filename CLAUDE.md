@@ -4,7 +4,7 @@ App Android **nativa (Kotlin + Jetpack Compose)** per esplorare tutto il file sy
 
 ## Decisioni già prese
 - Kotlin nativo, non Capacitor: un file manager con migliaia di file va meglio in Compose che in una WebView.
-- Build tramite GitHub Actions (`.github/workflows/android.yml`), stesso schema di `portfolioTrackerMobile`: l'APK debug esce come artifact del run.
+- Build tramite GitHub Actions (`.github/workflows/android.yml`), stesso schema di `portfolioTrackerMobile`: l'APK esce come artifact del run. È la variante **release** (non debuggabile, molto più fluida del debug con Compose), firmata con la stessa chiave stabile: si installa sopra le versioni debug. Minificazione (R8) disattivata per prudenza.
 - Firma stabile: `debug.keystore` nella root (password `android`, alias `androiddebugkey`) e `versionCode` = numero del run, così ogni APK si installa sopra il precedente senza disinstallare. Il repository è pubblico e la chiave è volutamente non protetta, come nel progetto del portafoglio: da sistemare quando il progetto sarà maturo.
 - Niente Gradle wrapper committato: il workflow usa `gradle/actions/setup-gradle` con Gradle 8.9.
 - UI in italiano.
@@ -23,6 +23,11 @@ App Android **nativa (Kotlin + Jetpack Compose)** per esplorare tutto il file sy
 - Gesti sulle righe: scorrimento verso destra = elimina (rosso, con la solita conferma), verso sinistra = rinomina (blu, con il solito dialogo); la riga torna al suo posto. Disattivati durante la selezione multipla.
 - Menu delle azioni rapide: pulsante ⋮ a destra di ogni riga (nascosto durante la selezione). Voci: Apri, Leggi / modifica come testo, Apri con..., Rinomina, Elimina e, per gli archivi, "Estrai qui" e "Estrai in cartella".
 - Primo obiettivo: ZIP, comprese le password. Formati successivi: TAR, GZ, BZ2, XZ, 7z (Commons Compress) e RAR in sola estrazione (junrar).
+
+## Prestazioni (scorrimento fluido)
+- Le righe non devono fare chiamate al file system durante la composizione (`File.length()`, `lastModified()`, `isDirectory`, ordinamento con `lastModified`...). La cartella si legge una volta, fuori dal thread principale, in `readEntries` (`FileUtils.kt`), che produce `FileEntry` con dati già pronti; filtri, ordinamento e righe usano solo questi.
+- Miniature: cache in memoria, lettura immediata dalla cache, decodifica in secondo piano con al massimo 3 richieste contemporanee.
+- Il menu ⋮ di una riga si crea solo quando è aperto.
 
 ## Vincoli di Android da ricordare
 - Da Android 11 serve `MANAGE_EXTERNAL_STORAGE` ("Accesso a tutti i file"), che l'utente concede a mano. Va bene per un APK installato a mano, non per il Play Store.

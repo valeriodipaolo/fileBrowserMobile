@@ -13,6 +13,12 @@ import android.media.ExifInterface
 import android.util.LruCache
 import android.webkit.MimeTypeMap
 import android.widget.Toast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
+import java.text.DateFormat
+import java.util.Date
 import androidx.core.content.FileProvider
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.exception.ZipException
@@ -23,9 +29,47 @@ private val ARCHIVE_EXTENSIONS = setOf("zip")
 
 fun File.isArchive(): Boolean = isFile && extension.lowercase() in ARCHIVE_EXTENSIONS
 
-/** Elenco ordinato secondo [comparator]; null se la cartella non è leggibile. */
-fun listEntries(dir: File, comparator: Comparator<File>): List<File>? =
-    dir.listFiles()?.sortedWith(comparator)
+/**
+ * Una riga dell'elenco con tutti i dati già letti (data, dimensione, categoria, testo dei dettagli).
+ * Si crea fuori dal thread principale: durante lo scorrimento le righe non fanno più chiamate al file system.
+ */
+class FileEntry(
+    val file: File,
+    val name: String,
+    val path: String,
+    val isDirectory: Boolean,
+    val modified: Long,
+    val category: FileCategory,
+    /** Estensione in minuscolo, senza il punto. */
+    val extension: String,
+    val details: String
+) {
+    val isHidden: Boolean get() = name.startsWith(".")
+    val isArchive: Boolean get() = !isDirectory && extension in ARCHIVE_EXTENSIONS
+    val isImage: Boolean get() = category == FileCategory.IMAGES
+}
+
+/** Legge il contenuto di una cartella (non ordinato); null se non è leggibile. Da chiamare fuori dal thread principale. */
+fun readEntries(dir: File): List<FileEntry>? {
+    val files = dir.listFiles() ?: return null
+    val format = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+    return files.map { f ->
+        val isDir = f.isDirectory
+        val modified = f.lastModified()
+        val ext = f.extension.lowercase()
+        val date = format.format(Date(modified))
+        FileEntry(
+            file = f,
+            name = f.name,
+            path = f.absolutePath,
+            isDirectory = isDir,
+            modified = modified,
+            category = categoryOf(isDir, ext),
+            extension = ext,
+            details = if (isDir) date else "${formatSize(f.length())} · $date"
+        )
+    }
+}
 
 /** L'ordine di dichiarazione è quello dei chip nella schermata. */
 enum class SortKey(val label: String) {
@@ -63,18 +107,18 @@ fun decodeSort(spec: String): List<SortRule> =
     }
 
 /** Le cartelle restano sempre prima dei file. Senza criteri attivi si ordina per nome crescente; a parità, per nome. */
-fun buildComparator(rules: List<SortRule>): Comparator<File> {
-    val byName = Comparator<File> { a, b -> a.name.compareTo(b.name, ignoreCase = true) }
-    var result: Comparator<File> = Comparator { a, b ->
+fun buildComparator(rules: List<SortRule>): Comparator<FileEntry> {
+    val byName = Comparator<FileEntry> { a, b -> a.name.compareTo(b.name, ignoreCase = true) }
+    var result: Comparator<FileEntry> = Comparator { a, b ->
         // true prima di false: le cartelle vengono per prime
         b.isDirectory.compareTo(a.isDirectory)
     }
     val effective = rules.ifEmpty { listOf(SortRule(SortKey.NAME, descending = false)) }
     for (rule in effective) {
-        val base: Comparator<File> = when (rule.key) {
+        val base: Comparator<FileEntry> = when (rule.key) {
             SortKey.NAME -> byName
-            SortKey.DATE -> Comparator { a, b -> a.lastModified().compareTo(b.lastModified()) }
-            SortKey.TYPE -> Comparator { a, b -> a.extension.compareTo(b.extension, ignoreCase = true) }
+            SortKey.DATE -> Comparator { a, b -> a.modified.compareTo(b.modified) }
+            SortKey.TYPE -> Comparator { a, b -> a.extension.compareTo(b.extension) }
         }
         result = result.then(if (rule.descending) base.reversed() else base)
     }
@@ -181,9 +225,19 @@ private val thumbnailCache = object : LruCache<String, Bitmap>((Runtime.getRunti
     override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount / 1024
 }
 
+/** Miniatura già in cache (lettura immediata, sicura sul thread principale): le righe che tornano in vista appaiono subito. */
+fun cachedThumbnail(path: String, modified: Long, sizePx: Int): Bitmap? = thumbnailCache.get("$path|$modified|$sizePx")
+
+// Al massimo 3 decodifiche contemporanee: scorrendo in fretta non si saturano i processori. Le righe uscite dallo
+// schermo annullano la loro richiesta prima di partire.
+private val thumbnailPermits = Semaphore(3)
+
+suspend fun loadThumbnailLimited(file: File, modified: Long, sizePx: Int): Bitmap? =
+    thumbnailPermits.withPermit { withContext(Dispatchers.IO) { loadThumbnail(file, modified, sizePx) } }
+
 /** Miniatura quadrata-ish di lato massimo [sizePx]; da chiamare fuori dal thread principale. Null se non decodificabile. */
-fun loadThumbnail(file: File, sizePx: Int): Bitmap? {
-    val key = "${file.absolutePath}|${file.lastModified()}|$sizePx"
+fun loadThumbnail(file: File, modified: Long, sizePx: Int): Bitmap? {
+    val key = "${file.absolutePath}|$modified|$sizePx"
     thumbnailCache.get(key)?.let { return it }
     return try {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -244,9 +298,10 @@ private val TEXT_TYPES = setOf(
 private val VIDEO_TYPES = setOf("mp4", "mkv", "avi", "mov", "webm", "3gp", "m4v", "flv", "wmv")
 private val AUDIO_TYPES = setOf("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "wma", "amr")
 
-fun File.category(): FileCategory {
+fun File.category(): FileCategory = categoryOf(isDirectory, extension.lowercase())
+
+fun categoryOf(isDirectory: Boolean, ext: String): FileCategory {
     if (isDirectory) return FileCategory.FOLDERS
-    val ext = extension.lowercase()
     return when {
         ext in ARCHIVE_TYPES -> FileCategory.ARCHIVES
         ext in TEXT_TYPES -> FileCategory.TEXT
@@ -259,10 +314,8 @@ fun File.category(): FileCategory {
 }
 
 /** Le cartelle restano sempre visibili (per poter navigare), tranne nel filtro "Cartelle" che mostra solo quelle. */
-fun File.matchesFilter(filter: FileCategory): Boolean = when (filter) {
+fun FileEntry.matchesFilter(filter: FileCategory): Boolean = when (filter) {
     FileCategory.ALL -> true
     FileCategory.FOLDERS -> isDirectory
-    else -> isDirectory || category() == filter
+    else -> isDirectory || category == filter
 }
-
-fun File.isHidden(): Boolean = name.startsWith(".")

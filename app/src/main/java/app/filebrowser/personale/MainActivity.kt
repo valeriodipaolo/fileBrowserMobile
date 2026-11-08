@@ -214,9 +214,28 @@ private fun Browser(resumeTick: Int) {
 
     // resumeTick: l'elenco si rilegge ogni volta che l'app torna in primo piano (per esempio dopo aver
     // aggiunto o scaricato file da un'altra app).
-    val entries = remember(current, refresh, sortSpec, resumeTick) { listEntries(current, buildComparator(sortRules)) }
-    val visible = remember(entries, filter, showHidden) {
-        entries?.filter { (showHidden || !it.isHidden()) && it.matchesFilter(filter) }
+    // La cartella si legge fuori dal thread principale e una volta sola per riga (dimensione, data, categoria):
+    // durante lo scorrimento le righe non toccano più il file system. Si rilegge a ogni cambio di cartella,
+    // aggiornamento o ritorno nell'app (resumeTick).
+    var allEntries by remember { mutableStateOf<List<FileEntry>>(emptyList()) }
+    var unreadable by remember { mutableStateOf(false) }
+    var loading by remember { mutableStateOf(true) }
+    var listedDir by remember { mutableStateOf<File?>(null) }
+    LaunchedEffect(current, refresh, resumeTick) {
+        if (listedDir != current) {
+            allEntries = emptyList()
+            loading = true
+        }
+        val result = withContext(Dispatchers.IO) { readEntries(current) }
+        listedDir = current
+        unreadable = result == null
+        allEntries = result.orEmpty()
+        loading = false
+    }
+    val visible = remember(allEntries, filter, showHidden, sortSpec) {
+        allEntries
+            .filter { (showHidden || !it.isHidden) && it.matchesFilter(filter) }
+            .sortedWith(buildComparator(sortRules))
     }
 
     // Il tasto indietro risale di una cartella finché non si torna alla memoria interna, poi esce dall'app.
@@ -266,7 +285,7 @@ private fun Browser(resumeTick: Int) {
                         }
                     },
                     actions = {
-                        TextButton(onClick = { selected = visible.orEmpty().map { it.absolutePath }.toSet() }) {
+                        TextButton(onClick = { selected = visible.map { it.path }.toSet() }) {
                             Text("Tutti")
                         }
                         IconButton(onClick = { dialog = DialogState.DeleteMany(selected.map { File(it) }) }) {
@@ -318,7 +337,7 @@ private fun Browser(resumeTick: Int) {
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            if (busy || loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -364,29 +383,31 @@ private fun Browser(resumeTick: Int) {
                 modifier = Modifier.fillMaxSize()
             ) {
             when {
-                entries == null || visible == null -> Text("Cartella non leggibile", modifier = Modifier.padding(16.dp))
-                entries.isEmpty() -> Text("Cartella vuota", modifier = Modifier.padding(16.dp))
+                loading -> Unit
+                unreadable -> Text("Cartella non leggibile", modifier = Modifier.padding(16.dp))
+                allEntries.isEmpty() -> Text("Cartella vuota", modifier = Modifier.padding(16.dp))
                 visible.isEmpty() -> Text("Nessun elemento con questi filtri", modifier = Modifier.padding(16.dp))
                 // Il margine in fondo evita che il pulsante "Nuovo file" copra l'ultima riga.
                 else -> LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 88.dp)) {
-                    items(visible, key = { it.absolutePath }) { file ->
+                    items(visible, key = { it.path }) { entry ->
+                        val file = entry.file
                         FileRow(
-                            file = file,
+                            entry = entry,
                             selectionMode = selected.isNotEmpty(),
-                            isSelected = file.absolutePath in selected,
+                            isSelected = entry.path in selected,
                             onToggleSelect = {
-                                val path = file.absolutePath
+                                val path = entry.path
                                 selected = if (path in selected) selected - path else selected + path
                             },
-                            onStartSelection = { selected = setOf(file.absolutePath) },
+                            onStartSelection = { selected = setOf(entry.path) },
                             onOpen = {
                                 when {
-                                    file.isDirectory -> current = file
-                                    file.category() == FileCategory.TEXT -> editPath = file.absolutePath
+                                    entry.isDirectory -> current = file
+                                    entry.category == FileCategory.TEXT -> editPath = entry.path
                                     else -> openFile(context, file)
                                 }
                             },
-                            onOpenAsText = { editPath = file.absolutePath },
+                            onOpenAsText = { editPath = entry.path },
                             onOpenWith = { openFile(context, file, forceChooser = true) },
                             onExtractHere = { extract(file, file.parentFile ?: current, null) },
                             onExtractToFolder = {
@@ -552,7 +573,7 @@ private fun Browser(resumeTick: Int) {
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun FileRow(
-    file: File,
+    entry: FileEntry,
     selectionMode: Boolean,
     isSelected: Boolean,
     onToggleSelect: () -> Unit,
@@ -566,10 +587,7 @@ private fun FileRow(
     onDelete: () -> Unit
 ) {
     var menu by remember { mutableStateOf(false) }
-    val details = remember(file) {
-        val date = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(file.lastModified()))
-        if (file.isDirectory) date else "${formatSize(file.length())} · $date"
-    }
+    val file = entry.file
 
     // Scorrimento laterale: verso destra elimina, verso sinistra rinomina. L'azione apre la solita conferma
     // o il solito dialogo e la riga torna al suo posto (confirmValueChange restituisce false).
@@ -621,9 +639,10 @@ private fun FileRow(
             if (selectionMode) {
                 Checkbox(checked = isSelected, onCheckedChange = null, modifier = Modifier.padding(end = 12.dp))
             }
-            val thumb = if (file.isImage()) {
-                produceState<android.graphics.Bitmap?>(initialValue = null, file) {
-                    value = withContext(Dispatchers.IO) { loadThumbnail(file, 160) }
+            val thumb = if (entry.isImage) {
+                // Parte dalla miniatura in cache, se c'è; altrimenti la decodifica in secondo piano (al massimo 3 per volta).
+                produceState<android.graphics.Bitmap?>(initialValue = cachedThumbnail(entry.path, entry.modified, 160), entry.path) {
+                    if (value == null) value = loadThumbnailLimited(file, entry.modified, 160)
                 }.value
             } else null
             Box(modifier = Modifier.padding(end = 16.dp).size(48.dp), contentAlignment = Alignment.Center) {
@@ -635,13 +654,13 @@ private fun FileRow(
                         modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp))
                     )
                 } else {
-                    FileTypeIcon(file)
+                    FileTypeIcon(entry)
                 }
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(file.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(entry.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    details,
+                    entry.details,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -652,8 +671,9 @@ private fun FileRow(
                     IconButton(onClick = { menu = true }) {
                         Icon(MoreVertIcon, contentDescription = "Azioni")
                     }
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        if (file.isArchive()) {
+                    // Il menu si crea solo quando serve: con migliaia di righe, uno per riga appesantisce lo scorrimento.
+                    if (menu) DropdownMenu(expanded = true, onDismissRequest = { menu = false }) {
+                        if (entry.isArchive) {
                             DropdownMenuItem(text = { Text("Estrai qui") }, onClick = { menu = false; onExtractHere() })
                             DropdownMenuItem(
                                 text = { Text("Estrai in «${file.nameWithoutExtension}»") },
@@ -661,7 +681,7 @@ private fun FileRow(
                             )
                         }
                         DropdownMenuItem(text = { Text("Apri") }, onClick = { menu = false; onOpen() })
-                        if (file.isFile) {
+                        if (!entry.isDirectory) {
                             DropdownMenuItem(text = { Text("Leggi / modifica come testo") }, onClick = { menu = false; onOpenAsText() })
                             DropdownMenuItem(text = { Text("Apri con...") }, onClick = { menu = false; onOpenWith() })
                         }
@@ -677,16 +697,16 @@ private fun FileRow(
 
 /** Icona del tipo di file: tutte le pagine hanno la stessa dimensione (32x40 dp) e lo stesso stile. */
 @Composable
-private fun FileTypeIcon(file: File) {
-    when (file.category()) {
+private fun FileTypeIcon(entry: FileEntry) {
+    when (entry.category) {
         FileCategory.FOLDERS -> Image(FolderIcon, contentDescription = null, modifier = Modifier.size(width = 38.dp, height = 32.dp))
         FileCategory.PDF -> PageIcon(PdfPageIcon, "PDF")
-        FileCategory.ARCHIVES -> PageIcon(ArchivePageIcon, file.extension.uppercase().take(4).ifEmpty { "ZIP" })
+        FileCategory.ARCHIVES -> PageIcon(ArchivePageIcon, entry.extension.uppercase().take(4).ifEmpty { "ZIP" })
         FileCategory.TEXT -> PageIcon(TextPageIcon, null)
         FileCategory.VIDEO -> PageIcon(VideoPageIcon, null)
         FileCategory.AUDIO -> PageIcon(AudioPageIcon, null)
         FileCategory.IMAGES -> PageIcon(ImagePageIcon, null)
-        else -> PageIcon(GenericPageIcon, file.extension.uppercase().take(4).ifEmpty { null })
+        else -> PageIcon(GenericPageIcon, entry.extension.uppercase().take(4).ifEmpty { null })
     }
 }
 
@@ -696,13 +716,17 @@ private fun PageIcon(icon: ImageVector, label: String?) {
     Box(modifier = Modifier.size(width = 32.dp, height = 40.dp)) {
         Image(imageVector = icon, contentDescription = null, modifier = Modifier.fillMaxSize())
         if (label != null) {
+            // lineHeight = fontSize: senza il margine extra del testo, la sigla sta nella parte bassa della pagina
+            // e non tocca le righe o la cerniera disegnate sopra.
+            val size = if (label.length > 3) 8.sp else 10.sp
             Text(
                 label,
                 color = Color(0xFF2B2B2B),
-                fontSize = if (label.length > 3) 8.sp else 10.sp,
+                fontSize = size,
+                lineHeight = size,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 7.dp)
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp)
             )
         }
     }
