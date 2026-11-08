@@ -1,6 +1,6 @@
 # FileBrowser — istruzioni per Claude
 
-App Android **nativa (Kotlin + Jetpack Compose)** per esplorare tutto il file system, con menu contestuale (tocco lungo) e azioni rapide, prima fra tutte "Estrai" per gli archivi. Uso personale. Il proprietario lavora **solo da smartphone e GitHub**: nessun Android Studio, nessun test locale. Ogni modifica si verifica compilando con GitHub Actions e provando l'APK sul telefono.
+App Android **nativa (Kotlin + Jetpack Compose)** per esplorare tutto il file system, con menu delle azioni rapide (pulsante ⋮ su ogni riga), prima fra tutte "Estrai" per gli archivi. Uso personale. Il proprietario lavora **solo da smartphone e GitHub**: nessun Android Studio, nessun test locale. Ogni modifica si verifica compilando con GitHub Actions e provando l'APK sul telefono.
 
 ## Decisioni già prese
 - Kotlin nativo, non Capacitor: un file manager con migliaia di file va meglio in Compose che in una WebView.
@@ -18,9 +18,9 @@ App Android **nativa (Kotlin + Jetpack Compose)** per esplorare tutto il file sy
 - Il file si apre con l'app predefinita di Android; "Apri con..." nel menu forza il selettore. Eccezione: i file di testo (categoria Testo) si aprono nel lettore/editor integrato (`TextEditor.kt`: lettura di default, pulsante Modifica/Salva, conferma sulle modifiche non salvate, UTF-8, massimo 2 MB, rifiuta i binari). "Leggi / modifica come testo" nel menu lo apre per qualsiasi file.
 - Pulsante "+ Nuovo file di testo" in basso: chiede il nome (proposto "nuovo.txt", senza sovrascrivere file esistenti), crea il file vuoto nella cartella corrente e lo apre subito nell'editor in modalità modifica.
 - I file .apk si installano toccandoli: serve il permesso `REQUEST_INSTALL_PACKAGES` nel manifest e il consenso "Installa app sconosciute" per FileBrowser, che l'app chiede aprendo la schermata giusta delle impostazioni la prima volta.
-- Selezione multipla per eliminare: voce "Seleziona" nel menu al tocco lungo avvia la modalità selezione; poi un tocco aggiunge o toglie un elemento (casella e riga evidenziata). La barra in alto mostra il conteggio, "Tutti" (tutti gli elementi visibili), il cestino (con conferma) e la X per uscire; il tasto indietro esce dalla selezione. La selezione si azzera cambiando cartella.
+- Selezione multipla per eliminare: la pressione prolungata su una riga avvia la modalità selezione (non apre nessun menu); poi un tocco, o un'altra pressione prolungata, aggiunge o toglie un elemento (casella e riga evidenziata). La barra in alto mostra il conteggio, "Tutti" (tutti gli elementi visibili), il cestino (con conferma) e la X per uscire; il tasto indietro esce dalla selezione. La selezione si azzera cambiando cartella.
 - L'elenco si rilegge da solo quando l'app torna in primo piano (`resumeTick`) e con la voce "Aggiorna" del menu ⋮. Non c'è ancora un controllo automatico mentre l'app resta aperta in primo piano.
-- Menu contestuale al tocco lungo, con azioni rapide. Per gli archivi: "Estrai qui" e "Estrai in cartella".
+- Menu delle azioni rapide: pulsante ⋮ a destra di ogni riga (nascosto durante la selezione). Voci: Apri, Leggi / modifica come testo, Apri con..., Rinomina, Elimina e, per gli archivi, "Estrai qui" e "Estrai in cartella".
 - Primo obiettivo: ZIP, comprese le password. Formati successivi: TAR, GZ, BZ2, XZ, 7z (Commons Compress) e RAR in sola estrazione (junrar).
 
 ## Vincoli di Android da ricordare

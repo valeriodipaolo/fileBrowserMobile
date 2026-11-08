@@ -558,7 +558,8 @@ private fun FileRow(
                 .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
                 .combinedClickable(
                     onClick = if (selectionMode) onToggleSelect else onOpen,
-                    onLongClick = if (selectionMode) onToggleSelect else { { menu = true } }
+                    // Pressione prolungata: avvia la selezione (o aggiunge/toglie l'elemento se già attiva).
+                    onLongClick = if (selectionMode) onToggleSelect else onStartSelection
                 )
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -583,7 +584,7 @@ private fun FileRow(
                     FileTypeIcon(file)
                 }
             }
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(file.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     details,
@@ -591,23 +592,30 @@ private fun FileRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        }
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            DropdownMenuItem(text = { Text("Seleziona") }, onClick = { menu = false; onStartSelection() })
-            if (file.isArchive()) {
-                DropdownMenuItem(text = { Text("Estrai qui") }, onClick = { menu = false; onExtractHere() })
-                DropdownMenuItem(
-                    text = { Text("Estrai in «${file.nameWithoutExtension}»") },
-                    onClick = { menu = false; onExtractToFolder() }
-                )
+            // Menu delle azioni rapide (estrai, rinomina, apri con...): nella modalità selezione non serve.
+            if (!selectionMode) {
+                Box {
+                    IconButton(onClick = { menu = true }) {
+                        Icon(MoreVertIcon, contentDescription = "Azioni")
+                    }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        if (file.isArchive()) {
+                            DropdownMenuItem(text = { Text("Estrai qui") }, onClick = { menu = false; onExtractHere() })
+                            DropdownMenuItem(
+                                text = { Text("Estrai in «${file.nameWithoutExtension}»") },
+                                onClick = { menu = false; onExtractToFolder() }
+                            )
+                        }
+                        DropdownMenuItem(text = { Text("Apri") }, onClick = { menu = false; onOpen() })
+                        if (file.isFile) {
+                            DropdownMenuItem(text = { Text("Leggi / modifica come testo") }, onClick = { menu = false; onOpenAsText() })
+                            DropdownMenuItem(text = { Text("Apri con...") }, onClick = { menu = false; onOpenWith() })
+                        }
+                        DropdownMenuItem(text = { Text("Rinomina") }, onClick = { menu = false; onRename() })
+                        DropdownMenuItem(text = { Text("Elimina") }, onClick = { menu = false; onDelete() })
+                    }
+                }
             }
-            DropdownMenuItem(text = { Text("Apri") }, onClick = { menu = false; onOpen() })
-            if (file.isFile) {
-                DropdownMenuItem(text = { Text("Leggi / modifica come testo") }, onClick = { menu = false; onOpenAsText() })
-                DropdownMenuItem(text = { Text("Apri con...") }, onClick = { menu = false; onOpenWith() })
-            }
-            DropdownMenuItem(text = { Text("Rinomina") }, onClick = { menu = false; onRename() })
-            DropdownMenuItem(text = { Text("Elimina") }, onClick = { menu = false; onDelete() })
         }
     }
 }
