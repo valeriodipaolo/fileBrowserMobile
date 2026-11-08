@@ -69,7 +69,8 @@ fun TextEditor(file: File, onClose: () -> Unit) {
     var original by remember(file) { mutableStateOf<String?>(null) }
     var text by remember(file) { mutableStateOf("") }
     var error by remember(file) { mutableStateOf<String?>(null) }
-    var editMode by remember(file) { mutableStateOf(false) }
+    // Un file vuoto (per esempio appena creato) si apre subito in modifica: non c'è nulla da leggere.
+    var editMode by remember(file) { mutableStateOf(file.length() == 0L) }
     var askDiscard by remember(file) { mutableStateOf(false) }
 
     LaunchedEffect(file) {

@@ -22,6 +22,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.FilterChip
@@ -170,6 +176,7 @@ private sealed interface DialogState {
     data class Rename(val file: File) : DialogState
     data class Delete(val file: File) : DialogState
     data class Password(val archive: File, val destination: File, val wrong: Boolean) : DialogState
+    data object NewFile : DialogState
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -227,6 +234,11 @@ private fun Browser() {
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(onClick = { dialog = DialogState.NewFile }) {
+                Text("+  Nuovo file di testo")
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -294,7 +306,8 @@ private fun Browser() {
                 entries == null || visible == null -> Text("Cartella non leggibile", modifier = Modifier.padding(16.dp))
                 entries.isEmpty() -> Text("Cartella vuota", modifier = Modifier.padding(16.dp))
                 visible.isEmpty() -> Text("Nessun elemento con questi filtri", modifier = Modifier.padding(16.dp))
-                else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+                // Il margine in fondo evita che il pulsante "Nuovo file" copra l'ultima riga.
+                else -> LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 88.dp)) {
                     items(visible, key = { it.absolutePath }) { file ->
                         FileRow(
                             file = file,
@@ -389,6 +402,52 @@ private fun Browser() {
                         dialog = null
                         extract(d.archive, d.destination, password)
                     }) { Text("Estrai") }
+                },
+                dismissButton = { TextButton(onClick = { dialog = null }) { Text("Annulla") } }
+            )
+        }
+
+        DialogState.NewFile -> {
+            val suggested = remember { uniqueFileName(current, "nuovo", "txt") }
+            // Preseleziona la parte prima dell'estensione, così si può scrivere subito il nome.
+            var field by remember { mutableStateOf(TextFieldValue(suggested, TextRange(0, suggested.length - 4))) }
+            val focus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { focus.requestFocus() }
+            AlertDialog(
+                onDismissRequest = { dialog = null },
+                title = { Text("Nuovo file di testo") },
+                text = {
+                    OutlinedTextField(
+                        value = field,
+                        onValueChange = { field = it },
+                        singleLine = true,
+                        label = { Text("Nome del file") },
+                        modifier = Modifier.focusRequester(focus)
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val name = field.text.trim()
+                        val target = File(current, name)
+                        dialog = null
+                        scope.launch {
+                            if (name.isEmpty() || name == "." || name == ".." || name.contains('/')) {
+                                snackbar.showSnackbar("Nome non valido")
+                            } else if (target.exists()) {
+                                snackbar.showSnackbar("Esiste già un elemento con questo nome")
+                            } else {
+                                val created = withContext(Dispatchers.IO) {
+                                    runCatching { target.createNewFile() }.getOrDefault(false)
+                                }
+                                if (created) {
+                                    refresh++
+                                    editPath = target.absolutePath
+                                } else {
+                                    snackbar.showSnackbar("Impossibile creare il file")
+                                }
+                            }
+                        }
+                    }) { Text("Crea") }
                 },
                 dismissButton = { TextButton(onClick = { dialog = null }) { Text("Annulla") } }
             )

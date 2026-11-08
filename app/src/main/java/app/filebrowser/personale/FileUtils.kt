@@ -84,6 +84,17 @@ fun uniqueDir(parent: File, base: String): File {
     return candidate
 }
 
+/** Nome libero nella cartella: "base.ext", "base (2).ext", "base (3).ext"... */
+fun uniqueFileName(dir: File, base: String, ext: String): String {
+    var name = "$base.$ext"
+    var i = 2
+    while (File(dir, name).exists()) {
+        name = "$base ($i).$ext"
+        i++
+    }
+    return name
+}
+
 fun formatSize(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
     val units = arrayOf("KB", "MB", "GB", "TB")
