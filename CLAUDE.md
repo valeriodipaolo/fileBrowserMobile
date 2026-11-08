@@ -10,9 +10,9 @@ App Android **nativa (Kotlin + Jetpack Compose)** per esplorare tutto il file sy
 - UI in italiano.
 
 ## Requisiti funzionali
-- Mostrare tutti i file e le cartelle. I file nascosti (nome che inizia con `.`) si vedono con la casella "Mostra file nascosti", disattivata di default.
+- Mostrare tutti i file e le cartelle. I file nascosti (nome che inizia con `.`) si vedono con la voce "Mostra file nascosti" nel menu ⋮ della barra in alto, disattivata di default.
 - Icone per categoria (cartelle, archivi, testo, PDF, video, musica, immagini, altri) e barra di filtri in alto: "Tutti" di default, selezione singola alternativa. Le cartelle restano visibili con ogni filtro (tranne "Cartelle", che mostra solo quelle). Miniature per le immagini.
-- Sotto i filtri per tipo c'è l'ordinamento: Tipo, Data, Nome, componibili e a tre stati ciascuno (disabilitato → crescente → decrescente). Più criteri attivi si applicano nell'ordine in cui sono stati attivati (numerati sul chip). Le cartelle restano sempre prima dei file; senza criteri si ordina per nome crescente.
+- Sotto i filtri per tipo c'è l'ordinamento, senza etichetta: chip Data, Nome, Tipo, alternativi (ne è attivo al massimo uno) e a tre stati ciascuno (disabilitato → crescente → decrescente). Default: Data decrescente. Con tutto disabilitato si ordina per nome crescente. Le cartelle restano sempre prima dei file.
 - Nell'elenco i PDF hanno un riquadro rosso con la scritta "PDF" al posto dell'emoji.
 - Icona dell'app: icona adattiva vettoriale, solo una cartella blu a due toni su sfondo trasparente (`res/drawable/ic_launcher_foreground.xml`, `res/mipmap-anydpi-v26/`), con versione monocromatica per le icone tematiche di Android 13+. Se un launcher mostrasse male lo sfondo trasparente, aggiungere un colore pieno come sfondo.
 - Il file si apre con l'app predefinita di Android; "Apri con..." nel menu forza il selettore. Eccezione: i file di testo (categoria Testo) si aprono nel lettore/editor integrato (`TextEditor.kt`: lettura di default, pulsante Modifica/Salva, conferma sulle modifiche non salvate, UTF-8, massimo 2 MB, rifiuta i binari). "Leggi / modifica come testo" nel menu lo apre per qualsiasi file.

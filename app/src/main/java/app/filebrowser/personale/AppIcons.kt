@@ -29,3 +29,23 @@ val ArrowUpIcon: ImageVector by lazy {
         }
     }.build()
 }
+
+/** Tre puntini verticali (forma "more vert" di Material): tre cerchi. */
+val MoreVertIcon: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "MoreVert",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).apply {
+        path(fill = SolidColor(Color.Black)) {
+            for (startY in listOf(4f, 10f, 16f)) {
+                moveTo(12f, startY)
+                arcToRelative(2f, 2f, 0f, true, true, 0f, 4f)
+                arcToRelative(2f, 2f, 0f, true, true, 0f, -4f)
+                close()
+            }
+        }
+    }.build()
+}

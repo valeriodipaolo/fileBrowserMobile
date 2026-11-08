@@ -27,22 +27,27 @@ fun File.isArchive(): Boolean = isFile && extension.lowercase() in ARCHIVE_EXTEN
 fun listEntries(dir: File, comparator: Comparator<File>): List<File>? =
     dir.listFiles()?.sortedWith(comparator)
 
+/** L'ordine di dichiarazione è quello dei chip nella schermata. */
 enum class SortKey(val label: String) {
-    TYPE("Tipo"),
     DATE("Data"),
-    NAME("Nome")
+    NAME("Nome"),
+    TYPE("Tipo")
 }
 
 /** Un criterio di ordinamento; più criteri attivi si applicano nell'ordine in cui sono stati attivati. */
 data class SortRule(val key: SortKey, val descending: Boolean)
 
-/** Ogni tocco sul criterio: disabilitato -> crescente -> decrescente -> disabilitato. */
+/**
+ * I criteri sono alternativi: ne è attivo al massimo uno.
+ * Tocco sul criterio: disabilitato -> crescente -> decrescente -> disabilitato.
+ * Toccare un criterio diverso disattiva quello attivo e parte da crescente.
+ */
 fun cycleSort(rules: List<SortRule>, key: SortKey): List<SortRule> {
     val current = rules.firstOrNull { it.key == key }
     return when {
-        current == null -> rules + SortRule(key, descending = false)
-        !current.descending -> rules.map { if (it.key == key) it.copy(descending = true) else it }
-        else -> rules.filter { it.key != key }
+        current == null -> listOf(SortRule(key, descending = false))
+        !current.descending -> listOf(SortRule(key, descending = true))
+        else -> emptyList()
     }
 }
 

@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.focus.FocusRequester
@@ -196,7 +196,9 @@ private fun Browser() {
 
     var filter by rememberSaveable { mutableStateOf(FileCategory.ALL) }
     var showHidden by rememberSaveable { mutableStateOf(false) }
-    var sortSpec by rememberSaveable { mutableStateOf("") }
+    // Di default: per data, dal più recente. Con tutti i criteri disabilitati si ordina per nome crescente.
+    var sortSpec by rememberSaveable { mutableStateOf(encodeSort(listOf(SortRule(SortKey.DATE, descending = true)))) }
+    var menuOpen by remember { mutableStateOf(false) }
     val sortRules = remember(sortSpec) { decodeSort(sortSpec) }
 
     val entries = remember(current, refresh, sortSpec) { listEntries(current, buildComparator(sortRules)) }
@@ -255,6 +257,23 @@ private fun Browser() {
                         onClick = { current = current.parentFile ?: current },
                         modifier = Modifier.padding(start = 8.dp)
                     ) { Icon(ArrowUpIcon, contentDescription = "Cartella superiore") }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(MoreVertIcon, contentDescription = "Altre opzioni")
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Mostra file nascosti") },
+                                trailingIcon = { if (showHidden) Text("✓") },
+                                onClick = {
+                                    showHidden = !showHidden
+                                    menuOpen = false
+                                }
+                            )
+                        }
+                    }
                 }
             )
         }
@@ -278,29 +297,19 @@ private fun Browser() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("Ordina", style = MaterialTheme.typography.labelLarge)
                 SortKey.entries.forEach { key ->
-                    val index = sortRules.indexOfFirst { it.key == key }
-                    val rule = sortRules.getOrNull(index)
+                    val rule = sortRules.firstOrNull { it.key == key }
                     FilterChip(
                         selected = rule != null,
                         onClick = { sortSpec = encodeSort(cycleSort(sortRules, key)) },
                         label = {
                             Text(
                                 if (rule == null) key.label
-                                else (if (sortRules.size > 1) "${index + 1}. " else "") +
-                                    key.label + if (rule.descending) " ↓" else " ↑"
+                                else key.label + if (rule.descending) " ↓" else " ↑"
                             )
                         }
                     )
                 }
-            }
-            Row(
-                modifier = Modifier.padding(horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(checked = showHidden, onCheckedChange = { showHidden = it })
-                Text("Mostra file nascosti")
             }
             when {
                 entries == null || visible == null -> Text("Cartella non leggibile", modifier = Modifier.padding(16.dp))
