@@ -29,13 +29,16 @@ jobs:
       - name: Compila APK
         run: gradle assembleDebug --stacktrace
 
-      - name: Impronta della firma (deve essere sempre uguale)
-        run: |
-          keytool -printcert -jarfile app/build/outputs/apk/debug/app-debug.apk | grep -i "SHA256"
-          echo "Keystore originale:"
-          keytool -list -v -keystore debug.keystore -storepass android | grep -i "SHA256"
-
       - uses: actions/upload-artifact@v4
         with:
           name: filebrowser-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Impronta della firma (deve essere sempre uguale)
+        run: |
+          # minSdk 26: l'APK ha solo firme v2/v3, che keytool -jarfile non legge. Si usa apksigner.
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          echo "APK:"
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk | grep -i "SHA-256"
+          echo "Keystore originale:"
+          keytool -list -v -keystore debug.keystore -storepass android | grep -i "SHA256"
