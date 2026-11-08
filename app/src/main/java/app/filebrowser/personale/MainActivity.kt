@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.runtime.LaunchedEffect
@@ -176,6 +177,7 @@ private sealed interface DialogState {
     data class Rename(val file: File) : DialogState
     data class Delete(val file: File) : DialogState
     data class Password(val archive: File, val destination: File, val wrong: Boolean) : DialogState
+    data class DeleteMany(val files: List<File>) : DialogState
     data object NewFile : DialogState
 }
 
@@ -188,6 +190,8 @@ private fun Browser() {
 
     val start = remember { Environment.getExternalStorageDirectory() }
     var current by remember { mutableStateOf(start) }
+    // Percorsi selezionati per l'eliminazione multipla; si azzera cambiando cartella. Non vuoto = modalità selezione.
+    var selected by remember(current) { mutableStateOf(setOf<String>()) }
     var refresh by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<DialogState?>(null) }
@@ -207,9 +211,11 @@ private fun Browser() {
     }
 
     // Il tasto indietro risale di una cartella finché non si torna alla memoria interna, poi esce dall'app.
-    BackHandler(enabled = editPath == null && current != start && current.parentFile != null) {
+    BackHandler(enabled = editPath == null && selected.isEmpty() && current != start && current.parentFile != null) {
         current = current.parentFile ?: start
     }
+    // Nella modalità selezione il tasto indietro esce dalla selezione.
+    BackHandler(enabled = editPath == null && selected.isNotEmpty()) { selected = emptySet() }
 
     fun extract(archive: File, destination: File, password: String?) {
         scope.launch {
@@ -242,7 +248,24 @@ private fun Browser() {
             }
         },
         topBar = {
-            TopAppBar(
+            if (selected.isNotEmpty()) {
+                TopAppBar(
+                    title = { Text("${selected.size} selezionati", fontSize = 16.sp) },
+                    navigationIcon = {
+                        IconButton(onClick = { selected = emptySet() }) {
+                            Icon(CloseIcon, contentDescription = "Annulla selezione")
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = { selected = visible.orEmpty().map { it.absolutePath }.toSet() }) {
+                            Text("Tutti")
+                        }
+                        IconButton(onClick = { dialog = DialogState.DeleteMany(selected.map { File(it) }) }) {
+                            Icon(TrashIcon, contentDescription = "Elimina selezionati")
+                        }
+                    }
+                )
+            } else TopAppBar(
                 title = {
                     Text(
                         current.absolutePath,
@@ -320,6 +343,13 @@ private fun Browser() {
                     items(visible, key = { it.absolutePath }) { file ->
                         FileRow(
                             file = file,
+                            selectionMode = selected.isNotEmpty(),
+                            isSelected = file.absolutePath in selected,
+                            onToggleSelect = {
+                                val path = file.absolutePath
+                                selected = if (path in selected) selected - path else selected + path
+                            },
+                            onStartSelection = { selected = setOf(file.absolutePath) },
                             onOpen = {
                                 when {
                                     file.isDirectory -> current = file
@@ -416,6 +446,29 @@ private fun Browser() {
             )
         }
 
+        is DialogState.DeleteMany -> AlertDialog(
+            onDismissRequest = { dialog = null },
+            title = { Text("Elimina") },
+            text = {
+                Text(
+                    if (d.files.size == 1) "Eliminare «${d.files[0].name}»?"
+                    else "Eliminare ${d.files.size} elementi? Le cartelle saranno eliminate con tutto il contenuto."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    dialog = null
+                    scope.launch {
+                        val deleted = withContext(Dispatchers.IO) { d.files.count { it.deleteRecursively() } }
+                        selected = emptySet()
+                        refresh++
+                        if (deleted < d.files.size) snackbar.showSnackbar("Eliminati $deleted di ${d.files.size}")
+                    }
+                }) { Text("Elimina") }
+            },
+            dismissButton = { TextButton(onClick = { dialog = null }) { Text("Annulla") } }
+        )
+
         DialogState.NewFile -> {
             val suggested = remember { uniqueFileName(current, "nuovo", "txt") }
             // Preseleziona la parte prima dell'estensione, così si può scrivere subito il nome.
@@ -470,6 +523,10 @@ private fun Browser() {
 @Composable
 private fun FileRow(
     file: File,
+    selectionMode: Boolean,
+    isSelected: Boolean,
+    onToggleSelect: () -> Unit,
+    onStartSelection: () -> Unit,
     onOpen: () -> Unit,
     onOpenAsText: () -> Unit,
     onOpenWith: () -> Unit,
@@ -489,10 +546,17 @@ private fun FileRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .combinedClickable(onClick = onOpen, onLongClick = { menu = true })
+                .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                .combinedClickable(
+                    onClick = if (selectionMode) onToggleSelect else onOpen,
+                    onLongClick = if (selectionMode) onToggleSelect else { { menu = true } }
+                )
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (selectionMode) {
+                Checkbox(checked = isSelected, onCheckedChange = null, modifier = Modifier.padding(end = 12.dp))
+            }
             val thumb = if (file.isImage()) {
                 produceState<android.graphics.Bitmap?>(initialValue = null, file) {
                     value = withContext(Dispatchers.IO) { loadThumbnail(file, 160) }
@@ -532,6 +596,7 @@ private fun FileRow(
             }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(text = { Text("Seleziona") }, onClick = { menu = false; onStartSelection() })
             if (file.isArchive()) {
                 DropdownMenuItem(text = { Text("Estrai qui") }, onClick = { menu = false; onExtractHere() })
                 DropdownMenuItem(
