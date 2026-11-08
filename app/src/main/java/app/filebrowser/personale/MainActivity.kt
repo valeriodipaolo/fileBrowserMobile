@@ -573,7 +573,11 @@ private fun FileRow(
                 } else {
                     when (file.category()) {
                         FileCategory.PDF -> TypeBadge("PDF", Color(0xFFD32F2F))
-                        FileCategory.ARCHIVES -> TypeBadge(file.extension.uppercase().take(4).ifEmpty { "ZIP" }, Color(0xFFEF6C00))
+                        FileCategory.ARCHIVES -> Image(
+                            imageVector = ArchiveBooksIcon,
+                            contentDescription = null,
+                            modifier = Modifier.size(36.dp)
+                        )
                         else -> Text(icon, fontSize = 24.sp)
                     }
                 }
