@@ -49,6 +49,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -179,6 +180,9 @@ private fun App(resumeTick: Int) {
     }
 }
 
+/** Foto, video o brano aperti nel visualizzatore integrato, con i file dello stesso tipo della cartella. */
+private data class ViewerState(val kind: FileCategory, val items: List<FileEntry>, val start: Int)
+
 private sealed interface DialogState {
     data class Rename(val file: File) : DialogState
     data class Delete(val file: File) : DialogState
@@ -204,6 +208,10 @@ private fun Browser(resumeTick: Int) {
     var dialog by remember { mutableStateOf<DialogState?>(null) }
     // File aperto nel lettore/editor di testo (percorso come stringa, così sopravvive alla rotazione).
     var editPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var viewer by remember { mutableStateOf<ViewerState?>(null) }
+    // Lo stato dell'elenco vive qui, non nella LazyColumn: tornando dal visualizzatore si ritrova la stessa posizione.
+    val listState = rememberLazyListState()
+    LaunchedEffect(current) { listState.scrollToItem(0) }
 
     var filter by rememberSaveable { mutableStateOf(FileCategory.ALL) }
     var showHidden by rememberSaveable { mutableStateOf(false) }
@@ -239,11 +247,11 @@ private fun Browser(resumeTick: Int) {
     }
 
     // Il tasto indietro risale di una cartella finché non si torna alla memoria interna, poi esce dall'app.
-    BackHandler(enabled = editPath == null && selected.isEmpty() && current != start && current.parentFile != null) {
+    BackHandler(enabled = editPath == null && viewer == null && selected.isEmpty() && current != start && current.parentFile != null) {
         current = current.parentFile ?: start
     }
     // Nella modalità selezione il tasto indietro esce dalla selezione.
-    BackHandler(enabled = editPath == null && selected.isNotEmpty()) { selected = emptySet() }
+    BackHandler(enabled = editPath == null && viewer == null && selected.isNotEmpty()) { selected = emptySet() }
 
     fun extract(archive: File, destination: File, password: String?) {
         scope.launch {
@@ -265,6 +273,20 @@ private fun Browser(resumeTick: Int) {
     val editing = editPath
     if (editing != null) {
         TextEditor(File(editing), onClose = { editPath = null; refresh++ })
+        return
+    }
+
+    val viewing = viewer
+    if (viewing != null) {
+        when (viewing.kind) {
+            FileCategory.IMAGES -> ImageViewer(viewing.items, viewing.start, onClose = { viewer = null })
+            else -> MediaPlayerScreen(
+                viewing.items,
+                viewing.start,
+                isVideo = viewing.kind == FileCategory.VIDEO,
+                onClose = { viewer = null }
+            )
+        }
         return
     }
 
@@ -388,7 +410,11 @@ private fun Browser(resumeTick: Int) {
                 allEntries.isEmpty() -> Text("Cartella vuota", modifier = Modifier.padding(16.dp))
                 visible.isEmpty() -> Text("Nessun elemento con questi filtri", modifier = Modifier.padding(16.dp))
                 // Il margine in fondo evita che il pulsante "Nuovo file" copra l'ultima riga.
-                else -> LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 88.dp)) {
+                else -> LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 88.dp)
+                ) {
                     items(visible, key = { it.path }) { entry ->
                         val file = entry.file
                         FileRow(
@@ -404,6 +430,18 @@ private fun Browser(resumeTick: Int) {
                                 when {
                                     entry.isDirectory -> current = file
                                     entry.category == FileCategory.TEXT -> editPath = entry.path
+                                    entry.category == FileCategory.IMAGES ||
+                                        entry.category == FileCategory.VIDEO ||
+                                        entry.category == FileCategory.AUDIO -> {
+                                        // Foto, video e musica si aprono nel visualizzatore integrato, con tutti i file
+                                        // dello stesso tipo della cartella (nell'ordine e con i filtri attuali).
+                                        val sameKind = visible.filter { it.category == entry.category }
+                                        viewer = ViewerState(
+                                            entry.category,
+                                            sameKind,
+                                            sameKind.indexOfFirst { it.path == entry.path }.coerceAtLeast(0)
+                                        )
+                                    }
                                     else -> openFile(context, file)
                                 }
                             },
