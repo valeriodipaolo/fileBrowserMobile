@@ -20,12 +20,58 @@ private val ARCHIVE_EXTENSIONS = setOf("zip")
 
 fun File.isArchive(): Boolean = isFile && extension.lowercase() in ARCHIVE_EXTENSIONS
 
-/** Elenco ordinato (cartelle prima, poi per nome); null se la cartella non è leggibile. */
-fun listEntries(dir: File): List<File>? =
-    dir.listFiles()?.sortedWith(
-        compareByDescending<File> { it.isDirectory }
-            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
-    )
+/** Elenco ordinato secondo [comparator]; null se la cartella non è leggibile. */
+fun listEntries(dir: File, comparator: Comparator<File>): List<File>? =
+    dir.listFiles()?.sortedWith(comparator)
+
+enum class SortKey(val label: String) {
+    TYPE("Tipo"),
+    DATE("Data"),
+    NAME("Nome")
+}
+
+/** Un criterio di ordinamento; più criteri attivi si applicano nell'ordine in cui sono stati attivati. */
+data class SortRule(val key: SortKey, val descending: Boolean)
+
+/** Ogni tocco sul criterio: disabilitato -> crescente -> decrescente -> disabilitato. */
+fun cycleSort(rules: List<SortRule>, key: SortKey): List<SortRule> {
+    val current = rules.firstOrNull { it.key == key }
+    return when {
+        current == null -> rules + SortRule(key, descending = false)
+        !current.descending -> rules.map { if (it.key == key) it.copy(descending = true) else it }
+        else -> rules.filter { it.key != key }
+    }
+}
+
+// Lo stato è salvato come testo (es. "NAME:A,DATE:D") per sopravvivere alla rotazione dello schermo.
+fun encodeSort(rules: List<SortRule>): String =
+    rules.joinToString(",") { "${it.key.name}:${if (it.descending) "D" else "A"}" }
+
+fun decodeSort(spec: String): List<SortRule> =
+    spec.split(",").mapNotNull { part ->
+        val pieces = part.split(":")
+        val key = SortKey.entries.firstOrNull { it.name == pieces.getOrNull(0) } ?: return@mapNotNull null
+        SortRule(key, descending = pieces.getOrNull(1) == "D")
+    }
+
+/** Le cartelle restano sempre prima dei file. Senza criteri attivi si ordina per nome crescente; a parità, per nome. */
+fun buildComparator(rules: List<SortRule>): Comparator<File> {
+    val byName = Comparator<File> { a, b -> a.name.compareTo(b.name, ignoreCase = true) }
+    var result: Comparator<File> = Comparator { a, b ->
+        // true prima di false: le cartelle vengono per prime
+        b.isDirectory.compareTo(a.isDirectory)
+    }
+    val effective = rules.ifEmpty { listOf(SortRule(SortKey.NAME, descending = false)) }
+    for (rule in effective) {
+        val base: Comparator<File> = when (rule.key) {
+            SortKey.NAME -> byName
+            SortKey.DATE -> Comparator { a, b -> a.lastModified().compareTo(b.lastModified()) }
+            SortKey.TYPE -> Comparator { a, b -> a.extension.compareTo(b.extension, ignoreCase = true) }
+        }
+        result = result.then(if (rule.descending) base.reversed() else base)
+    }
+    return result.then(byName)
+}
 
 /** Cartella di destinazione che non esiste ancora: "nome", "nome (2)", "nome (3)"... */
 fun uniqueDir(parent: File, base: String): File {
@@ -142,7 +188,7 @@ enum class FileCategory(val label: String, val icon: String) {
     FOLDERS("Cartelle", "📁"),
     ARCHIVES("Archivi", "🗜️"),
     TEXT("Testo", "📝"),
-    PDF("PDF", "📕"),
+    PDF("PDF", ""), // senza emoji: nell'elenco si disegna un riquadro rosso "PDF"
     VIDEO("Video", "🎬"),
     AUDIO("Musica", "🎵"),
     IMAGES("Immagini", "🖼️"),

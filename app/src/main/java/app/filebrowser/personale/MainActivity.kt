@@ -15,6 +15,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyRow
@@ -184,8 +187,10 @@ private fun Browser() {
 
     var filter by rememberSaveable { mutableStateOf(FileCategory.ALL) }
     var showHidden by rememberSaveable { mutableStateOf(false) }
+    var sortSpec by rememberSaveable { mutableStateOf("") }
+    val sortRules = remember(sortSpec) { decodeSort(sortSpec) }
 
-    val entries = remember(current, refresh) { listEntries(current) }
+    val entries = remember(current, refresh, sortSpec) { listEntries(current, buildComparator(sortRules)) }
     val visible = remember(entries, filter, showHidden) {
         entries?.filter { (showHidden || !it.isHidden()) && it.matchesFilter(filter) }
     }
@@ -249,7 +254,29 @@ private fun Browser() {
                     FilterChip(
                         selected = filter == category,
                         onClick = { filter = category },
-                        label = { Text("${category.icon} ${category.label}") }
+                        label = { Text(if (category.icon.isEmpty()) category.label else "${category.icon} ${category.label}") }
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("Ordina", style = MaterialTheme.typography.labelLarge)
+                SortKey.entries.forEach { key ->
+                    val index = sortRules.indexOfFirst { it.key == key }
+                    val rule = sortRules.getOrNull(index)
+                    FilterChip(
+                        selected = rule != null,
+                        onClick = { sortSpec = encodeSort(cycleSort(sortRules, key)) },
+                        label = {
+                            Text(
+                                if (rule == null) key.label
+                                else (if (sortRules.size > 1) "${index + 1}. " else "") +
+                                    key.label + if (rule.descending) " ↓" else " ↑"
+                            )
+                        }
                     )
                 }
             }
@@ -409,7 +436,19 @@ private fun FileRow(
                         modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp))
                     )
                 } else {
-                    Text(icon, fontSize = 24.sp)
+                    if (file.category() == FileCategory.PDF) {
+                        Box(
+                            modifier = Modifier
+                                .size(width = 40.dp, height = 28.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFFD32F2F)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("PDF", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Text(icon, fontSize = 24.sp)
+                    }
                 }
             }
             Column {
