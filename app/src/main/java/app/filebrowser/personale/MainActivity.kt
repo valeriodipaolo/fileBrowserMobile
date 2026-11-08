@@ -83,7 +83,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -195,6 +200,7 @@ private fun Browser(resumeTick: Int) {
     var selected by remember(current) { mutableStateOf(setOf<String>()) }
     var refresh by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
+    var refreshing by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<DialogState?>(null) }
     // File aperto nel lettore/editor di testo (percorso come stringa, così sopravvive alla rotazione).
     var editPath by rememberSaveable { mutableStateOf<String?>(null) }
@@ -344,6 +350,19 @@ private fun Browser(resumeTick: Int) {
                     )
                 }
             }
+            // Trascinando l'elenco verso il basso si rilegge la cartella.
+            PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = {
+                    scope.launch {
+                        refreshing = true
+                        refresh++
+                        delay(500)
+                        refreshing = false
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            ) {
             when {
                 entries == null || visible == null -> Text("Cartella non leggibile", modifier = Modifier.padding(16.dp))
                 entries.isEmpty() -> Text("Cartella vuota", modifier = Modifier.padding(16.dp))
@@ -379,6 +398,7 @@ private fun Browser(resumeTick: Int) {
                         )
                     }
                 }
+            }
             }
         }
     }
@@ -529,7 +549,7 @@ private fun Browser(resumeTick: Int) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun FileRow(
     file: File,
@@ -551,11 +571,45 @@ private fun FileRow(
         if (file.isDirectory) date else "${formatSize(file.length())} · $date"
     }
 
+    // Scorrimento laterale: verso destra elimina, verso sinistra rinomina. L'azione apre la solita conferma
+    // o il solito dialogo e la riga torna al suo posto (confirmValueChange restituisce false).
+    val swipeState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> { onDelete(); false }
+                SwipeToDismissBoxValue.EndToStart -> { onRename(); false }
+                SwipeToDismissBoxValue.Settled -> true
+            }
+        }
+    )
+    SwipeToDismissBox(
+        state = swipeState,
+        enableDismissFromStartToEnd = !selectionMode,
+        enableDismissFromEndToStart = !selectionMode,
+        backgroundContent = {
+            val direction = swipeState.dismissDirection
+            val color = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> Color(0xFFD32F2F)
+                SwipeToDismissBoxValue.EndToStart -> Color(0xFF1976D2)
+                SwipeToDismissBoxValue.Settled -> Color.Transparent
+            }
+            Box(
+                modifier = Modifier.fillMaxSize().background(color).padding(horizontal = 20.dp),
+                contentAlignment = if (direction == SwipeToDismissBoxValue.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd
+            ) {
+                when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> Icon(TrashIcon, contentDescription = "Elimina", tint = Color.White)
+                    SwipeToDismissBoxValue.EndToStart -> Icon(EditIcon, contentDescription = "Rinomina", tint = Color.White)
+                    SwipeToDismissBoxValue.Settled -> Unit
+                }
+            }
+        }
+    ) {
     Box {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
                 .combinedClickable(
                     onClick = if (selectionMode) onToggleSelect else onOpen,
                     // Pressione prolungata: avvia la selezione (o aggiunge/toglie l'elemento se già attiva).
@@ -617,6 +671,7 @@ private fun FileRow(
                 }
             }
         }
+    }
     }
 }
 
