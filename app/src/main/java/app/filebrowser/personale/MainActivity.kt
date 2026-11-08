@@ -572,7 +572,7 @@ private fun FileRow(
                     )
                 } else {
                     when (file.category()) {
-                        FileCategory.PDF -> TypeBadge("PDF", Color(0xFFD32F2F))
+                        FileCategory.PDF -> PdfFileIcon()
                         FileCategory.ARCHIVES -> Image(
                             imageVector = ArchiveBooksIcon,
                             contentDescription = null,
@@ -611,16 +611,17 @@ private fun FileRow(
     }
 }
 
-/** Riquadro colorato con una sigla (PDF, ZIP, RAR...) al posto dell'emoji. */
+/** Icona dei PDF: pagina con bordo rosso e la scritta "PDF" in basso. */
 @Composable
-private fun TypeBadge(label: String, color: Color) {
-    Box(
-        modifier = Modifier
-            .size(width = 40.dp, height = 28.dp)
-            .clip(RoundedCornerShape(4.dp))
-            .background(color),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+private fun PdfFileIcon() {
+    Box(modifier = Modifier.size(width = 32.dp, height = 40.dp)) {
+        Image(imageVector = PdfPageIcon, contentDescription = null, modifier = Modifier.fillMaxSize())
+        Text(
+            "PDF",
+            color = Color(0xFF2B2B2B),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 7.dp)
+        )
     }
 }

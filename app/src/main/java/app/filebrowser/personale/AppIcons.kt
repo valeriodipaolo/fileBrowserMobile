@@ -147,3 +147,45 @@ val ArchiveBooksIcon: ImageVector by lazy {
         book(x = 2f, y = 4.5f, w = 17f, h = 5f, color = Color(0xFFFFB300))
     }.build()
 }
+
+/** Pagina con angolo tagliato e bordo rosso: base dell'icona dei PDF. La scritta "PDF" si aggiunge sopra, in Compose. */
+val PdfPageIcon: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "PdfPage",
+        defaultWidth = 24.dp,
+        defaultHeight = 30.dp,
+        viewportWidth = 24f,
+        viewportHeight = 30f
+    ).apply {
+        path(fill = SolidColor(Color(0xFFE53935))) {
+            moveTo(3f, 0f)
+            horizontalLineTo(15.5f)
+            lineTo(24f, 8.5f)
+            verticalLineTo(27f)
+            arcToRelative(3f, 3f, 0f, false, true, -3f, 3f)
+            horizontalLineTo(3f)
+            arcToRelative(3f, 3f, 0f, false, true, -3f, -3f)
+            verticalLineTo(3f)
+            arcToRelative(3f, 3f, 0f, false, true, 3f, -3f)
+            close()
+        }
+        path(fill = SolidColor(Color(0xFFF4F4F4))) {
+            moveTo(3f, 1.6f)
+            horizontalLineTo(14.9f)
+            lineTo(22.4f, 9.1f)
+            verticalLineTo(27f)
+            arcToRelative(1.4f, 1.4f, 0f, false, true, -1.4f, 1.4f)
+            horizontalLineTo(3f)
+            arcToRelative(1.4f, 1.4f, 0f, false, true, -1.4f, -1.4f)
+            verticalLineTo(3f)
+            arcToRelative(1.4f, 1.4f, 0f, false, true, 1.4f, -1.4f)
+            close()
+        }
+        // Tre righe di testo stilizzate
+        path(fill = SolidColor(Color(0xFFE53935).copy(alpha = 0.85f))) {
+            moveTo(6f, 8f); horizontalLineToRelative(10f); verticalLineToRelative(1.6f); horizontalLineToRelative(-10f); close()
+            moveTo(6f, 11.5f); horizontalLineToRelative(12f); verticalLineToRelative(1.6f); horizontalLineToRelative(-12f); close()
+            moveTo(6f, 15f); horizontalLineToRelative(8f); verticalLineToRelative(1.6f); horizontalLineToRelative(-8f); close()
+        }
+    }.build()
+}
