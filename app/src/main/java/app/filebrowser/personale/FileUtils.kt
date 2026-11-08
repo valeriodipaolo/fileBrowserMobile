@@ -220,7 +220,7 @@ fun loadThumbnail(file: File, sizePx: Int): Bitmap? {
 enum class FileCategory(val label: String, val icon: String) {
     ALL("Tutti", "📂"),
     FOLDERS("Cartelle", "📁"),
-    ARCHIVES("Archivi", "🗜️"),
+    ARCHIVES("Archivi", ""), // senza emoji: nell'elenco si disegna un riquadro arancione con l'estensione
     TEXT("Testo", "📝"),
     PDF("PDF", ""), // senza emoji: nell'elenco si disegna un riquadro rosso "PDF"
     VIDEO("Video", "🎬"),

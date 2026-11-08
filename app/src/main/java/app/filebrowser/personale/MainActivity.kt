@@ -571,18 +571,10 @@ private fun FileRow(
                         modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp))
                     )
                 } else {
-                    if (file.category() == FileCategory.PDF) {
-                        Box(
-                            modifier = Modifier
-                                .size(width = 40.dp, height = 28.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0xFFD32F2F)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("PDF", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    } else {
-                        Text(icon, fontSize = 24.sp)
+                    when (file.category()) {
+                        FileCategory.PDF -> TypeBadge("PDF", Color(0xFFD32F2F))
+                        FileCategory.ARCHIVES -> TypeBadge(file.extension.uppercase().take(4).ifEmpty { "ZIP" }, Color(0xFFEF6C00))
+                        else -> Text(icon, fontSize = 24.sp)
                     }
                 }
             }
@@ -612,5 +604,19 @@ private fun FileRow(
             DropdownMenuItem(text = { Text("Rinomina") }, onClick = { menu = false; onRename() })
             DropdownMenuItem(text = { Text("Elimina") }, onClick = { menu = false; onDelete() })
         }
+    }
+}
+
+/** Riquadro colorato con una sigla (PDF, ZIP, RAR...) al posto dell'emoji. */
+@Composable
+private fun TypeBadge(label: String, color: Color) {
+    Box(
+        modifier = Modifier
+            .size(width = 40.dp, height = 28.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(color),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
