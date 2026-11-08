@@ -17,6 +17,7 @@ App Android **nativa (Kotlin + Jetpack Compose)** per esplorare tutto il file sy
 - Icona dell'app: icona adattiva vettoriale, solo una cartella blu a due toni su sfondo trasparente (`res/drawable/ic_launcher_foreground.xml`, `res/mipmap-anydpi-v26/`), con versione monocromatica per le icone tematiche di Android 13+. Se un launcher mostrasse male lo sfondo trasparente, aggiungere un colore pieno come sfondo.
 - Il file si apre con l'app predefinita di Android; "Apri con..." nel menu forza il selettore. Eccezione: i file di testo (categoria Testo) si aprono nel lettore/editor integrato (`TextEditor.kt`: lettura di default, pulsante Modifica/Salva, conferma sulle modifiche non salvate, UTF-8, massimo 2 MB, rifiuta i binari). "Leggi / modifica come testo" nel menu lo apre per qualsiasi file.
 - Pulsante "+ Nuovo file di testo" in basso: chiede il nome (proposto "nuovo.txt", senza sovrascrivere file esistenti), crea il file vuoto nella cartella corrente e lo apre subito nell'editor in modalità modifica.
+- I file .apk si installano toccandoli: serve il permesso `REQUEST_INSTALL_PACKAGES` nel manifest e il consenso "Installa app sconosciute" per FileBrowser, che l'app chiede aprendo la schermata giusta delle impostazioni la prima volta.
 - Menu contestuale al tocco lungo, con azioni rapide. Per gli archivi: "Estrai qui" e "Estrai in cartella".
 - Primo obiettivo: ZIP, comprese le password. Formati successivi: TAR, GZ, BZ2, XZ, 7z (Commons Compress) e RAR in sola estrazione (junrar).
 

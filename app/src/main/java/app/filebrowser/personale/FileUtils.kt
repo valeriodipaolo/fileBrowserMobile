@@ -4,6 +4,9 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
@@ -110,6 +113,21 @@ fun formatSize(bytes: Long): String {
 /** Apre con l'app predefinita di Android; con forceChooser mostra sempre l'elenco delle app. */
 fun openFile(context: Context, file: File, forceChooser: Boolean = false) {
     try {
+        // Per installare un APK Android richiede il permesso nel manifest e il consenso dell'utente alle "app sconosciute".
+        if (file.extension.equals("apk", ignoreCase = true) &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !context.packageManager.canRequestPackageInstalls()
+        ) {
+            Toast.makeText(
+                context,
+                "Consenti a FileBrowser di installare app, poi tocca di nuovo l'APK",
+                Toast.LENGTH_LONG
+            ).show()
+            context.startActivity(
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+            )
+            return
+        }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: "*/*"
         val intent = Intent(Intent.ACTION_VIEW)
