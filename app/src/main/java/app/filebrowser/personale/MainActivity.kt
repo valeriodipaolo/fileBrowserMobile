@@ -179,6 +179,8 @@ private fun Browser() {
     var refresh by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<DialogState?>(null) }
+    // File aperto nel lettore/editor di testo (percorso come stringa, così sopravvive alla rotazione).
+    var editPath by rememberSaveable { mutableStateOf<String?>(null) }
 
     var filter by rememberSaveable { mutableStateOf(FileCategory.ALL) }
     var showHidden by rememberSaveable { mutableStateOf(false) }
@@ -189,7 +191,7 @@ private fun Browser() {
     }
 
     // Il tasto indietro risale di una cartella finché non si torna alla memoria interna, poi esce dall'app.
-    BackHandler(enabled = current != start && current.parentFile != null) {
+    BackHandler(enabled = editPath == null && current != start && current.parentFile != null) {
         current = current.parentFile ?: start
     }
 
@@ -208,6 +210,12 @@ private fun Browser() {
                 is ExtractResult.Failed -> snackbar.showSnackbar("Estrazione non riuscita: ${result.message}")
             }
         }
+    }
+
+    val editing = editPath
+    if (editing != null) {
+        TextEditor(File(editing), onClose = { editPath = null; refresh++ })
+        return
     }
 
     Scaffold(
@@ -260,7 +268,14 @@ private fun Browser() {
                     items(visible, key = { it.absolutePath }) { file ->
                         FileRow(
                             file = file,
-                            onOpen = { if (file.isDirectory) current = file else openFile(context, file) },
+                            onOpen = {
+                                when {
+                                    file.isDirectory -> current = file
+                                    file.category() == FileCategory.TEXT -> editPath = file.absolutePath
+                                    else -> openFile(context, file)
+                                }
+                            },
+                            onOpenAsText = { editPath = file.absolutePath },
                             onOpenWith = { openFile(context, file, forceChooser = true) },
                             onExtractHere = { extract(file, file.parentFile ?: current, null) },
                             onExtractToFolder = {
@@ -358,6 +373,7 @@ private fun Browser() {
 private fun FileRow(
     file: File,
     onOpen: () -> Unit,
+    onOpenAsText: () -> Unit,
     onOpenWith: () -> Unit,
     onExtractHere: () -> Unit,
     onExtractToFolder: () -> Unit,
@@ -415,6 +431,7 @@ private fun FileRow(
             }
             DropdownMenuItem(text = { Text("Apri") }, onClick = { menu = false; onOpen() })
             if (file.isFile) {
+                DropdownMenuItem(text = { Text("Leggi / modifica come testo") }, onClick = { menu = false; onOpenAsText() })
                 DropdownMenuItem(text = { Text("Apri con...") }, onClick = { menu = false; onOpenWith() })
             }
             DropdownMenuItem(text = { Text("Rinomina") }, onClick = { menu = false; onRename() })
