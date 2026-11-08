@@ -23,3 +23,4 @@ App Android **nativa (Kotlin + Jetpack Compose)** per esplorare tutto il file sy
 - Non puoi compilare: scrivi codice prudente, con API stabili e dipendenze a versioni note. Se la build fallisce, il proprietario incolla il log di Actions.
 - Dopo ogni modifica indica cosa provare sul telefono.
 - Non aggiungere dipendenze pesanti senza motivo (niente `material-icons-extended`).
+- **Non pubblicare ogni modifica su `main`.** Ogni push lancia una build e il proprietario vuole raccogliere più modifiche per volta. Fai i commit in locale e fai `git push` solo quando il proprietario lo chiede esplicitamente (per esempio "pubblica"). Le correzioni a una build fallita seguono la stessa regola.
