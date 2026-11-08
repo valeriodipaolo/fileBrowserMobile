@@ -109,72 +109,182 @@ val CloseIcon: ImageVector by lazy {
     }.build()
 }
 
-/** Pagina arancione con angolo tagliato e due righe di testo: base dell'icona degli archivi. L'etichetta si aggiunge in Compose. */
-val ArchivePageIcon: ImageVector by lazy {
-    ImageVector.Builder(
-        name = "ArchivePage",
-        defaultWidth = 24.dp,
-        defaultHeight = 30.dp,
-        viewportWidth = 24f,
-        viewportHeight = 30f
-    ).apply {
-        path(fill = SolidColor(Color(0xFFFB8C00))) {
-            moveTo(3f, 0f)
-            horizontalLineTo(15.5f)
-            lineTo(24f, 8.5f)
-            verticalLineTo(27f)
-            arcToRelative(3f, 3f, 0f, false, true, -3f, 3f)
-            horizontalLineTo(3f)
-            arcToRelative(3f, 3f, 0f, false, true, -3f, -3f)
-            verticalLineTo(3f)
-            arcToRelative(3f, 3f, 0f, false, true, 3f, -3f)
-            close()
-        }
-        path(fill = SolidColor(Color.White)) {
-            moveTo(5f, 5.5f); horizontalLineToRelative(11f); verticalLineToRelative(1.6f); horizontalLineToRelative(-11f); close()
-            moveTo(5f, 9.5f); horizontalLineToRelative(14f); verticalLineToRelative(1.6f); horizontalLineToRelative(-14f); close()
-        }
-    }.build()
+// --- Icone dei tipi di file: stessa pagina (angolo tagliato, bordo colorato), stessa dimensione -----------------
+
+private val PageFill = Color(0xFFF7F7F7)
+private val PdfColor = Color(0xFFE53935)
+private val ArchiveColor = Color(0xFF7B1FA2)
+private val TextColor = Color(0xFF546E7A)
+private val GenericColor = Color(0xFF90A4AE)
+private val VideoColor = Color(0xFF00897B)
+private val AudioColor = Color(0xFF3949AB)
+private val ImageColor = Color(0xFF43A047)
+
+private fun ImageVector.Builder.pageBase(border: Color) {
+    path(fill = SolidColor(border)) {
+        moveTo(3f, 0f)
+        horizontalLineTo(15.5f)
+        lineTo(24f, 8.5f)
+        verticalLineTo(27f)
+        arcToRelative(3f, 3f, 0f, false, true, -3f, 3f)
+        horizontalLineTo(3f)
+        arcToRelative(3f, 3f, 0f, false, true, -3f, -3f)
+        verticalLineTo(3f)
+        arcToRelative(3f, 3f, 0f, false, true, 3f, -3f)
+        close()
+    }
+    path(fill = SolidColor(PageFill)) {
+        moveTo(3f, 1.6f)
+        horizontalLineTo(14.9f)
+        lineTo(22.4f, 9.1f)
+        verticalLineTo(27f)
+        arcToRelative(1.4f, 1.4f, 0f, false, true, -1.4f, 1.4f)
+        horizontalLineTo(3f)
+        arcToRelative(1.4f, 1.4f, 0f, false, true, -1.4f, -1.4f)
+        verticalLineTo(3f)
+        arcToRelative(1.4f, 1.4f, 0f, false, true, 1.4f, -1.4f)
+        close()
+    }
 }
 
-/** Pagina con angolo tagliato e bordo rosso: base dell'icona dei PDF. La scritta "PDF" si aggiunge sopra, in Compose. */
-val PdfPageIcon: ImageVector by lazy {
+private fun ImageVector.Builder.bar(x: Float, y: Float, w: Float, h: Float, color: Color) {
+    path(fill = SolidColor(color)) {
+        moveTo(x, y)
+        horizontalLineToRelative(w)
+        verticalLineToRelative(h)
+        horizontalLineToRelative(-w)
+        close()
+    }
+}
+
+private fun ImageVector.Builder.circle(cx: Float, cy: Float, r: Float, color: Color) {
+    path(fill = SolidColor(color)) {
+        moveTo(cx - r, cy)
+        arcToRelative(r, r, 0f, true, true, 2 * r, 0f)
+        arcToRelative(r, r, 0f, true, true, -2 * r, 0f)
+        close()
+    }
+}
+
+private fun pageIcon(name: String, border: Color, content: ImageVector.Builder.() -> Unit): ImageVector =
     ImageVector.Builder(
-        name = "PdfPage",
+        name = name,
         defaultWidth = 24.dp,
         defaultHeight = 30.dp,
         viewportWidth = 24f,
         viewportHeight = 30f
     ).apply {
-        path(fill = SolidColor(Color(0xFFE53935))) {
-            moveTo(3f, 0f)
-            horizontalLineTo(15.5f)
-            lineTo(24f, 8.5f)
-            verticalLineTo(27f)
+        pageBase(border)
+        content()
+    }.build()
+
+/** PDF: righe di testo in alto; la scritta "PDF" si aggiunge in Compose nella metà bassa, senza toccarle. */
+val PdfPageIcon: ImageVector by lazy {
+    pageIcon("PdfPage", PdfColor) {
+        bar(6f, 5.5f, 10f, 1.4f, PdfColor)
+        bar(6f, 8.5f, 12f, 1.4f, PdfColor)
+        bar(6f, 11.5f, 8f, 1.4f, PdfColor)
+    }
+}
+
+/** Archivi: una cerniera al centro (simbolo universale degli archivi compressi); l'estensione si aggiunge in basso. */
+val ArchivePageIcon: ImageVector by lazy {
+    pageIcon("ArchivePage", ArchiveColor) {
+        for (i in 0..3) {
+            val y = 3f + i * 2f
+            if (i % 2 == 0) bar(10.2f, y, 1.8f, 1.2f, ArchiveColor) else bar(12f, y, 1.8f, 1.2f, ArchiveColor)
+        }
+        bar(10.4f, 11f, 3.2f, 3.2f, ArchiveColor)
+        circle(12f, 12.8f, 0.7f, PageFill)
+    }
+}
+
+/** File di testo: pagina con molte righe. */
+val TextPageIcon: ImageVector by lazy {
+    pageIcon("TextPage", TextColor) {
+        bar(5f, 6f, 12f, 1.4f, TextColor)
+        bar(5f, 9.5f, 14f, 1.4f, TextColor)
+        bar(5f, 13f, 12f, 1.4f, TextColor)
+        bar(5f, 16.5f, 14f, 1.4f, TextColor)
+        bar(5f, 20f, 8f, 1.4f, TextColor)
+    }
+}
+
+/** File generici: pagina vuota; l'estensione, se c'è, si aggiunge in basso. */
+val GenericPageIcon: ImageVector by lazy { pageIcon("GenericPage", GenericColor) { } }
+
+val VideoPageIcon: ImageVector by lazy {
+    pageIcon("VideoPage", VideoColor) {
+        path(fill = SolidColor(VideoColor)) {
+            moveTo(9f, 9f)
+            lineTo(9f, 21f)
+            lineTo(18.5f, 15f)
+            close()
+        }
+    }
+}
+
+val AudioPageIcon: ImageVector by lazy {
+    pageIcon("AudioPage", AudioColor) {
+        circle(9.5f, 21f, 2.6f, AudioColor)
+        bar(11.4f, 8f, 1.4f, 13f, AudioColor)
+        path(fill = SolidColor(AudioColor)) {
+            moveTo(12.8f, 8f)
+            lineTo(18.5f, 10.5f)
+            lineTo(18.5f, 13.5f)
+            lineTo(12.8f, 11f)
+            close()
+        }
+    }
+}
+
+/** Segnaposto delle immagini mentre la miniatura si carica: sole e montagne. */
+val ImagePageIcon: ImageVector by lazy {
+    pageIcon("ImagePage", ImageColor) {
+        circle(16f, 8f, 1.9f, ImageColor)
+        path(fill = SolidColor(ImageColor)) {
+            moveTo(4.5f, 24f)
+            lineTo(10f, 15f)
+            lineTo(14f, 21f)
+            lineTo(16.5f, 18f)
+            lineTo(19.5f, 24f)
+            close()
+        }
+    }
+}
+
+/** Cartella blu a due toni, la stessa dell'icona dell'app, per le cartelle nell'elenco. */
+val FolderIcon: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "Folder",
+        defaultWidth = 24.dp,
+        defaultHeight = 20.dp,
+        viewportWidth = 24f,
+        viewportHeight = 20f
+    ).apply {
+        path(fill = SolidColor(Color(0xFF0D47A1))) {
+            moveTo(0f, 3f)
+            arcToRelative(3f, 3f, 0f, false, true, 3f, -3f)
+            horizontalLineToRelative(6f)
+            lineToRelative(2.5f, 2.5f)
+            horizontalLineToRelative(9.5f)
+            arcToRelative(3f, 3f, 0f, false, true, 3f, 3f)
+            verticalLineTo(17f)
             arcToRelative(3f, 3f, 0f, false, true, -3f, 3f)
             horizontalLineTo(3f)
             arcToRelative(3f, 3f, 0f, false, true, -3f, -3f)
-            verticalLineTo(3f)
+            close()
+        }
+        path(fill = SolidColor(Color(0xFF1E88E5))) {
+            moveTo(0f, 6.5f)
             arcToRelative(3f, 3f, 0f, false, true, 3f, -3f)
-            close()
-        }
-        path(fill = SolidColor(Color(0xFFF4F4F4))) {
-            moveTo(3f, 1.6f)
-            horizontalLineTo(14.9f)
-            lineTo(22.4f, 9.1f)
-            verticalLineTo(27f)
-            arcToRelative(1.4f, 1.4f, 0f, false, true, -1.4f, 1.4f)
+            horizontalLineToRelative(18f)
+            arcToRelative(3f, 3f, 0f, false, true, 3f, 3f)
+            verticalLineTo(17f)
+            arcToRelative(3f, 3f, 0f, false, true, -3f, 3f)
             horizontalLineTo(3f)
-            arcToRelative(1.4f, 1.4f, 0f, false, true, -1.4f, -1.4f)
-            verticalLineTo(3f)
-            arcToRelative(1.4f, 1.4f, 0f, false, true, 1.4f, -1.4f)
+            arcToRelative(3f, 3f, 0f, false, true, -3f, -3f)
             close()
-        }
-        // Tre righe di testo stilizzate
-        path(fill = SolidColor(Color(0xFFE53935).copy(alpha = 0.85f))) {
-            moveTo(6f, 8f); horizontalLineToRelative(10f); verticalLineToRelative(1.6f); horizontalLineToRelative(-10f); close()
-            moveTo(6f, 11.5f); horizontalLineToRelative(12f); verticalLineToRelative(1.6f); horizontalLineToRelative(-12f); close()
-            moveTo(6f, 15f); horizontalLineToRelative(8f); verticalLineToRelative(1.6f); horizontalLineToRelative(-8f); close()
         }
     }.build()
 }

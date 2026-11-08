@@ -17,6 +17,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
@@ -545,7 +546,6 @@ private fun FileRow(
     onDelete: () -> Unit
 ) {
     var menu by remember { mutableStateOf(false) }
-    val icon = file.category().icon
     val details = remember(file) {
         val date = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(file.lastModified()))
         if (file.isDirectory) date else "${formatSize(file.length())} · $date"
@@ -580,11 +580,7 @@ private fun FileRow(
                         modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp))
                     )
                 } else {
-                    when (file.category()) {
-                        FileCategory.PDF -> PdfFileIcon()
-                        FileCategory.ARCHIVES -> ArchiveFileIcon(file.extension.uppercase().take(4).ifEmpty { "ZIP" })
-                        else -> Text(icon, fontSize = 24.sp)
-                    }
+                    FileTypeIcon(file)
                 }
             }
             Column {
@@ -616,35 +612,35 @@ private fun FileRow(
     }
 }
 
-/** Icona dei PDF: pagina con bordo rosso e la scritta "PDF" in basso. */
+/** Icona del tipo di file: tutte le pagine hanno la stessa dimensione (32x40 dp) e lo stesso stile. */
 @Composable
-private fun PdfFileIcon() {
-    Box(modifier = Modifier.size(width = 32.dp, height = 40.dp)) {
-        Image(imageVector = PdfPageIcon, contentDescription = null, modifier = Modifier.fillMaxSize())
-        Text(
-            "PDF",
-            color = Color(0xFF2B2B2B),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 7.dp)
-        )
+private fun FileTypeIcon(file: File) {
+    when (file.category()) {
+        FileCategory.FOLDERS -> Image(FolderIcon, contentDescription = null, modifier = Modifier.size(width = 38.dp, height = 32.dp))
+        FileCategory.PDF -> PageIcon(PdfPageIcon, "PDF")
+        FileCategory.ARCHIVES -> PageIcon(ArchivePageIcon, file.extension.uppercase().take(4).ifEmpty { "ZIP" })
+        FileCategory.TEXT -> PageIcon(TextPageIcon, null)
+        FileCategory.VIDEO -> PageIcon(VideoPageIcon, null)
+        FileCategory.AUDIO -> PageIcon(AudioPageIcon, null)
+        FileCategory.IMAGES -> PageIcon(ImagePageIcon, null)
+        else -> PageIcon(GenericPageIcon, file.extension.uppercase().take(4).ifEmpty { null })
     }
 }
 
-/** Icona degli archivi: pagina arancione con una fascia bianca in basso che riporta l'estensione (ZIP, RAR, 7Z...). */
+/** Pagina con, se serve, una sigla (PDF, ZIP, DOCX...) nella metà bassa. */
 @Composable
-private fun ArchiveFileIcon(label: String) {
+private fun PageIcon(icon: ImageVector, label: String?) {
     Box(modifier = Modifier.size(width = 32.dp, height = 40.dp)) {
-        Image(imageVector = ArchivePageIcon, contentDescription = null, modifier = Modifier.fillMaxSize())
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 3.dp)
-                .size(width = 28.dp, height = 11.dp)
-                .background(Color.White, RoundedCornerShape(2.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(label, color = Color(0xFFEF6C00), fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Image(imageVector = icon, contentDescription = null, modifier = Modifier.fillMaxSize())
+        if (label != null) {
+            Text(
+                label,
+                color = Color(0xFF2B2B2B),
+                fontSize = if (label.length > 3) 8.sp else 10.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 7.dp)
+            )
         }
     }
 }
