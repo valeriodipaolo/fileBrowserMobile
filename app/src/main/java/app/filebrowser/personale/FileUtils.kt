@@ -136,3 +136,53 @@ fun loadThumbnail(file: File, sizePx: Int): Bitmap? {
         null
     }
 }
+
+enum class FileCategory(val label: String, val icon: String) {
+    ALL("Tutti", "📂"),
+    FOLDERS("Cartelle", "📁"),
+    ARCHIVES("Archivi", "🗜️"),
+    TEXT("Testo", "📝"),
+    PDF("PDF", "📕"),
+    VIDEO("Video", "🎬"),
+    AUDIO("Musica", "🎵"),
+    IMAGES("Immagini", "🖼️"),
+    OTHER("Altri", "📄")
+}
+
+/** Categorie mostrate come filtri nella barra in alto ("Altri" ha solo l'icona). */
+val FILTER_CATEGORIES = listOf(
+    FileCategory.ALL, FileCategory.FOLDERS, FileCategory.ARCHIVES, FileCategory.TEXT,
+    FileCategory.PDF, FileCategory.VIDEO, FileCategory.AUDIO, FileCategory.IMAGES
+)
+
+// Per l'icona e il filtro contano tutti questi formati; l'estrazione (isArchive) per ora solo lo ZIP.
+private val ARCHIVE_TYPES = setOf("zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz")
+private val TEXT_TYPES = setOf(
+    "txt", "md", "log", "csv", "json", "xml", "html", "htm", "ini", "conf", "cfg",
+    "yml", "yaml", "kt", "java", "js", "css", "sql", "srt", "rtf"
+)
+private val VIDEO_TYPES = setOf("mp4", "mkv", "avi", "mov", "webm", "3gp", "m4v", "flv", "wmv")
+private val AUDIO_TYPES = setOf("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "wma", "amr")
+
+fun File.category(): FileCategory {
+    if (isDirectory) return FileCategory.FOLDERS
+    val ext = extension.lowercase()
+    return when {
+        ext in ARCHIVE_TYPES -> FileCategory.ARCHIVES
+        ext in TEXT_TYPES -> FileCategory.TEXT
+        ext == "pdf" -> FileCategory.PDF
+        ext in VIDEO_TYPES -> FileCategory.VIDEO
+        ext in AUDIO_TYPES -> FileCategory.AUDIO
+        ext in IMAGE_EXTENSIONS -> FileCategory.IMAGES
+        else -> FileCategory.OTHER
+    }
+}
+
+/** Le cartelle restano sempre visibili (per poter navigare), tranne nel filtro "Cartelle" che mostra solo quelle. */
+fun File.matchesFilter(filter: FileCategory): Boolean = when (filter) {
+    FileCategory.ALL -> true
+    FileCategory.FOLDERS -> isDirectory
+    else -> isDirectory || category() == filter
+}
+
+fun File.isHidden(): Boolean = name.startsWith(".")

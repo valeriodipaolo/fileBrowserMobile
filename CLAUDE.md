@@ -10,7 +10,9 @@ App Android **nativa (Kotlin + Jetpack Compose)** per esplorare tutto il file sy
 - UI in italiano.
 
 ## Requisiti funzionali
-- Mostrare **tutti** i file e le cartelle, nascosti compresi.
+- Mostrare tutti i file e le cartelle. I file nascosti (nome che inizia con `.`) si vedono con la casella "Mostra file nascosti", disattivata di default.
+- Icone per categoria (cartelle, archivi, testo, PDF, video, musica, immagini, altri) e barra di filtri in alto: "Tutti" di default, selezione singola alternativa. Le cartelle restano visibili con ogni filtro (tranne "Cartelle", che mostra solo quelle). Miniature per le immagini.
+- Il file si apre con l'app predefinita di Android; "Apri con..." nel menu forza il selettore.
 - Menu contestuale al tocco lungo, con azioni rapide. Per gli archivi: "Estrai qui" e "Estrai in cartella".
 - Primo obiettivo: ZIP, comprese le password. Formati successivi: TAR, GZ, BZ2, XZ, 7z (Commons Compress) e RAR in sola estrazione (junrar).
 

@@ -16,6 +16,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.draw.clip
@@ -175,7 +180,13 @@ private fun Browser() {
     var busy by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<DialogState?>(null) }
 
+    var filter by rememberSaveable { mutableStateOf(FileCategory.ALL) }
+    var showHidden by rememberSaveable { mutableStateOf(false) }
+
     val entries = remember(current, refresh) { listEntries(current) }
+    val visible = remember(entries, filter, showHidden) {
+        entries?.filter { (showHidden || !it.isHidden()) && it.matchesFilter(filter) }
+    }
 
     // Il tasto indietro risale di una cartella finché non si torna alla memoria interna, poi esce dall'app.
     BackHandler(enabled = current != start && current.parentFile != null) {
@@ -222,11 +233,31 @@ private fun Browser() {
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(FILTER_CATEGORIES) { category ->
+                    FilterChip(
+                        selected = filter == category,
+                        onClick = { filter = category },
+                        label = { Text("${category.icon} ${category.label}") }
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(checked = showHidden, onCheckedChange = { showHidden = it })
+                Text("Mostra file nascosti")
+            }
             when {
-                entries == null -> Text("Cartella non leggibile", modifier = Modifier.padding(16.dp))
+                entries == null || visible == null -> Text("Cartella non leggibile", modifier = Modifier.padding(16.dp))
                 entries.isEmpty() -> Text("Cartella vuota", modifier = Modifier.padding(16.dp))
+                visible.isEmpty() -> Text("Nessun elemento con questi filtri", modifier = Modifier.padding(16.dp))
                 else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(entries, key = { it.absolutePath }) { file ->
+                    items(visible, key = { it.absolutePath }) { file ->
                         FileRow(
                             file = file,
                             onOpen = { if (file.isDirectory) current = file else openFile(context, file) },
@@ -334,11 +365,7 @@ private fun FileRow(
     onDelete: () -> Unit
 ) {
     var menu by remember { mutableStateOf(false) }
-    val icon = when {
-        file.isDirectory -> "📁"
-        file.isArchive() -> "🗜️"
-        else -> "📄"
-    }
+    val icon = file.category().icon
     val details = remember(file) {
         val date = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(file.lastModified()))
         if (file.isDirectory) date else "${formatSize(file.length())} · $date"
@@ -366,7 +393,7 @@ private fun FileRow(
                         modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp))
                     )
                 } else {
-                    Text(if (file.isImage()) "🖼️" else icon, fontSize = 24.sp)
+                    Text(icon, fontSize = 24.sp)
                 }
             }
             Column {
