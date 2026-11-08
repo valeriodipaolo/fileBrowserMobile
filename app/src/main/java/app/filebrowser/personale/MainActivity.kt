@@ -14,6 +14,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -345,7 +352,23 @@ private fun FileRow(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(icon, fontSize = 24.sp, modifier = Modifier.padding(end = 16.dp))
+            val thumb = if (file.isImage()) {
+                produceState<android.graphics.Bitmap?>(initialValue = null, file) {
+                    value = withContext(Dispatchers.IO) { loadThumbnail(file, 160) }
+                }.value
+            } else null
+            Box(modifier = Modifier.padding(end = 16.dp).size(48.dp), contentAlignment = Alignment.Center) {
+                if (thumb != null) {
+                    Image(
+                        bitmap = thumb.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(6.dp))
+                    )
+                } else {
+                    Text(if (file.isImage()) "🖼️" else icon, fontSize = 24.sp)
+                }
+            }
             Column {
                 Text(file.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(

@@ -3,6 +3,11 @@ package app.filebrowser.personale
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
+import android.util.LruCache
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.core.content.FileProvider
@@ -84,5 +89,50 @@ fun extractZip(archive: File, destination: File, password: String?): ExtractResu
         else ExtractResult.Failed(e.message ?: "Archivio non valido")
     } catch (e: Exception) {
         ExtractResult.Failed(e.message ?: "Errore durante l'estrazione")
+    }
+}
+
+private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
+
+fun File.isImage(): Boolean = isFile && extension.lowercase() in IMAGE_EXTENSIONS
+
+// Cache delle miniature: circa 1/8 della memoria dell'app, misurata in KB.
+private val thumbnailCache = object : LruCache<String, Bitmap>((Runtime.getRuntime().maxMemory() / 1024 / 8).toInt()) {
+    override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount / 1024
+}
+
+/** Miniatura quadrata-ish di lato massimo [sizePx]; da chiamare fuori dal thread principale. Null se non decodificabile. */
+fun loadThumbnail(file: File, sizePx: Int): Bitmap? {
+    val key = "${file.absolutePath}|${file.lastModified()}|$sizePx"
+    thumbnailCache.get(key)?.let { return it }
+    return try {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        var sample = 1
+        while (bounds.outWidth / (sample * 2) >= sizePx && bounds.outHeight / (sample * 2) >= sizePx) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        var bitmap = BitmapFactory.decodeFile(file.absolutePath, options) ?: return null
+        // Le foto del telefono hanno spesso l'orientamento nei metadati EXIF.
+        val rotation = try {
+            when (ExifInterface(file.absolutePath).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+        } catch (e: Exception) {
+            0f
+        }
+        if (rotation != 0f) {
+            val matrix = Matrix().apply { postRotate(rotation) }
+            bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        }
+        thumbnailCache.put(key, bitmap)
+        bitmap
+    } catch (e: Exception) {
+        null
+    } catch (e: OutOfMemoryError) {
+        null
     }
 }
