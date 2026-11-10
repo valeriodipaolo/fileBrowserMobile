@@ -447,6 +447,7 @@ private fun Browser(resumeTick: Int) {
                             },
                             onOpenAsText = { editPath = entry.path },
                             onOpenWith = { openFile(context, file, forceChooser = true) },
+                            onShare = { shareFile(context, file) },
                             onExtractHere = { extract(file, file.parentFile ?: current, null) },
                             onExtractToFolder = {
                                 val parent = file.parentFile ?: current
@@ -619,6 +620,7 @@ private fun FileRow(
     onOpen: () -> Unit,
     onOpenAsText: () -> Unit,
     onOpenWith: () -> Unit,
+    onShare: () -> Unit,
     onExtractHere: () -> Unit,
     onExtractToFolder: () -> Unit,
     onRename: () -> Unit,
@@ -722,6 +724,7 @@ private fun FileRow(
                         if (!entry.isDirectory) {
                             DropdownMenuItem(text = { Text("Leggi / modifica come testo") }, onClick = { menu = false; onOpenAsText() })
                             DropdownMenuItem(text = { Text("Apri con...") }, onClick = { menu = false; onOpenWith() })
+                            DropdownMenuItem(text = { Text("Condividi") }, onClick = { menu = false; onShare() })
                         }
                         DropdownMenuItem(text = { Text("Rinomina") }, onClick = { menu = false; onRename() })
                         DropdownMenuItem(text = { Text("Elimina") }, onClick = { menu = false; onDelete() })

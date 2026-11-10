@@ -22,7 +22,7 @@ App Android **nativa (Kotlin + Jetpack Compose)** per esplorare tutto il file sy
 - Selezione multipla per eliminare: la pressione prolungata su una riga avvia la modalità selezione (non apre nessun menu); poi un tocco, o un'altra pressione prolungata, aggiunge o toglie un elemento (casella e riga evidenziata). La barra in alto mostra il conteggio, "Tutti" (tutti gli elementi visibili), il cestino (con conferma) e la X per uscire; il tasto indietro esce dalla selezione. La selezione si azzera cambiando cartella.
 - L'elenco si rilegge trascinandolo verso il basso (`PullToRefreshBox`), quando l'app torna in primo piano (`resumeTick`) e con la voce "Aggiorna" del menu ⋮. Non c'è un controllo automatico mentre l'app resta aperta in primo piano.
 - Gesti sulle righe: scorrimento verso destra = elimina (rosso, con la solita conferma), verso sinistra = rinomina (blu, con il solito dialogo); la riga torna al suo posto. Disattivati durante la selezione multipla.
-- Menu delle azioni rapide: pulsante ⋮ a destra di ogni riga (nascosto durante la selezione). Voci: Apri, Leggi / modifica come testo, Apri con..., Rinomina, Elimina e, per gli archivi, "Estrai qui" e "Estrai in cartella".
+- Menu delle azioni rapide: pulsante ⋮ a destra di ogni riga (nascosto durante la selezione). Voci: Apri, Leggi / modifica come testo, Apri con..., Condividi (`shareFile`: ACTION_SEND con FileProvider verso OneDrive, Drive ecc.; solo file, non cartelle), Rinomina, Elimina e, per gli archivi, "Estrai qui" e "Estrai in cartella".
 - Primo obiettivo: ZIP, comprese le password. Formati successivi: TAR, GZ, BZ2, XZ, 7z (Commons Compress) e RAR in sola estrazione (junrar).
 
 ## Prestazioni (scorrimento fluido)

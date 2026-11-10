@@ -190,6 +190,23 @@ fun openFile(context: Context, file: File, forceChooser: Boolean = false) {
     }
 }
 
+/** Condivide il file con un'altra app (OneDrive, Drive, WhatsApp, e-mail...) tramite il selettore di Android. */
+fun shareFile(context: Context, file: File) {
+    try {
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: "*/*"
+        val intent = Intent(Intent.ACTION_SEND)
+            .setType(mime)
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.startActivity(Intent.createChooser(intent, "Condividi con"))
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, "Nessuna app può ricevere questo file", Toast.LENGTH_SHORT).show()
+    } catch (e: IllegalArgumentException) {
+        Toast.makeText(context, "Impossibile condividere il file", Toast.LENGTH_SHORT).show()
+    }
+}
+
 sealed interface ExtractResult {
     data object Ok : ExtractResult
     data object NeedsPassword : ExtractResult
