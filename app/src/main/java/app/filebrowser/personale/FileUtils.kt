@@ -16,6 +16,8 @@ import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
@@ -357,6 +359,28 @@ fun categoryOf(isDirectory: Boolean, ext: String): FileCategory {
         ext in IMAGE_EXTENSIONS -> FileCategory.IMAGES
         else -> FileCategory.OTHER
     }
+}
+
+/**
+ * Vero se [dir] contiene, a qualsiasi profondità, almeno un file della categoria [category]. Visita al massimo
+ * [budget] elementi: se il limite si supera (cartelle enormi) risponde vero, cioè la cartella resta visibile.
+ * Da chiamare fuori dal thread principale; si interrompe se la coroutine viene annullata.
+ */
+suspend fun folderHasCategory(dir: File, category: FileCategory, includeHidden: Boolean, budget: Int = 20000): Boolean {
+    val stack = ArrayDeque<File>()
+    stack.addLast(dir)
+    var visited = 0
+    while (stack.isNotEmpty()) {
+        currentCoroutineContext().ensureActive()
+        val children = stack.removeLast().listFiles() ?: continue
+        for (child in children) {
+            if (!includeHidden && child.name.startsWith(".")) continue
+            if (++visited > budget) return true
+            if (child.isDirectory) stack.addLast(child)
+            else if (categoryOf(false, child.extension.lowercase()) == category) return true
+        }
+    }
+    return false
 }
 
 /** Le cartelle restano sempre visibili (per poter navigare), tranne nel filtro "Cartelle" che mostra solo quelle. */

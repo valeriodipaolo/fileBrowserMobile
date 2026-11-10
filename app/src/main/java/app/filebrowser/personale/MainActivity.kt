@@ -240,9 +240,27 @@ private fun Browser(resumeTick: Int) {
         allEntries = result.orEmpty()
         loading = false
     }
-    val visible = remember(allEntries, filter, showHidden, sortSpec) {
+    // Con un filtro per tipo (non "Tutti" né "Cartelle") le cartelle senza file di quel tipo al loro interno
+    // spariscono. La ricerca avviene in secondo piano: le cartelle compaiono subito e quelle vuote di quel tipo
+    // si tolgono man mano che la verifica le raggiunge.
+    var emptyDirs by remember { mutableStateOf(setOf<String>()) }
+    LaunchedEffect(allEntries, filter, showHidden) {
+        emptyDirs = emptySet()
+        if (filter == FileCategory.ALL || filter == FileCategory.FOLDERS) return@LaunchedEffect
+        val dirs = allEntries.filter { it.isDirectory && (showHidden || !it.isHidden) }
+        val found = mutableSetOf<String>()
+        withContext(Dispatchers.IO) {
+            for (dir in dirs) {
+                if (!folderHasCategory(dir.file, filter, showHidden)) {
+                    found += dir.path
+                    emptyDirs = found.toSet()
+                }
+            }
+        }
+    }
+    val visible = remember(allEntries, filter, showHidden, sortSpec, emptyDirs) {
         allEntries
-            .filter { (showHidden || !it.isHidden) && it.matchesFilter(filter) }
+            .filter { (showHidden || !it.isHidden) && it.matchesFilter(filter) && it.path !in emptyDirs }
             .sortedWith(buildComparator(sortRules))
     }
 
