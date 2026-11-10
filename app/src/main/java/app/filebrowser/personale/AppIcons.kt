@@ -340,3 +340,28 @@ val ArrowBackIcon: ImageVector by lazy {
         }
     }.build()
 }
+
+/** Condividi: tre cerchi uniti da due linee, disegnati a mano. */
+val ShareIcon: ImageVector by lazy {
+    fun androidx.compose.ui.graphics.vector.PathBuilder.circle(cx: Float, cy: Float, r: Float) {
+        moveTo(cx - r, cy)
+        arcTo(r, r, 0f, true, false, cx + r, cy)
+        arcTo(r, r, 0f, true, false, cx - r, cy)
+        close()
+    }
+    ImageVector.Builder(
+        name = "Share",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).apply {
+        path(fill = SolidColor(Color.Black)) {
+            circle(18f, 5f, 3f)
+            circle(6f, 12f, 3f)
+            circle(18f, 19f, 3f)
+            moveTo(8.2f, 11.9f); lineTo(15.8f, 4.4f); lineTo(16.4f, 5.4f); lineTo(8.8f, 12.9f); close()
+            moveTo(8.8f, 11.1f); lineTo(16.4f, 18.6f); lineTo(15.8f, 19.6f); lineTo(8.2f, 12.1f); close()
+        }
+    }.build()
+}

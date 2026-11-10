@@ -207,6 +207,35 @@ fun shareFile(context: Context, file: File) {
     }
 }
 
+/** Condivide più file insieme; le cartelle vengono ignorate. */
+fun shareFiles(context: Context, files: List<File>) {
+    val onlyFiles = files.filter { it.isFile }
+    when (onlyFiles.size) {
+        0 -> Toast.makeText(context, "Le cartelle non si possono condividere", Toast.LENGTH_SHORT).show()
+        1 -> shareFile(context, onlyFiles[0])
+        else -> try {
+            val uris = ArrayList(onlyFiles.map {
+                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", it)
+            })
+            val mimes = onlyFiles.map {
+                MimeTypeMap.getSingleton().getMimeTypeFromExtension(it.extension.lowercase()) ?: "*/*"
+            }.toSet()
+            val intent = Intent(Intent.ACTION_SEND_MULTIPLE)
+                .setType(if (mimes.size == 1) mimes.first() else "*/*")
+                .putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            context.startActivity(Intent.createChooser(intent, "Condividi con"))
+            if (onlyFiles.size < files.size) {
+                Toast.makeText(context, "Le cartelle sono state escluse", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(context, "Nessuna app può ricevere questi file", Toast.LENGTH_SHORT).show()
+        } catch (e: IllegalArgumentException) {
+            Toast.makeText(context, "Impossibile condividere i file", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
 sealed interface ExtractResult {
     data object Ok : ExtractResult
     data object NeedsPassword : ExtractResult

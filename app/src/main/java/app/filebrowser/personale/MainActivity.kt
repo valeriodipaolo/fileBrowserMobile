@@ -310,6 +310,9 @@ private fun Browser(resumeTick: Int) {
                         TextButton(onClick = { selected = visible.map { it.path }.toSet() }) {
                             Text("Tutti")
                         }
+                        IconButton(onClick = { shareFiles(context, selected.map { File(it) }) }) {
+                            Icon(ShareIcon, contentDescription = "Condividi selezionati")
+                        }
                         IconButton(onClick = { dialog = DialogState.DeleteMany(selected.map { File(it) }) }) {
                             Icon(TrashIcon, contentDescription = "Elimina selezionati")
                         }
